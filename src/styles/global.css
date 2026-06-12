@@ -120,3 +120,26 @@ body {
   color: #8c8c8c;
   font-weight: 500;
 }
+
+/* OCR Content Rendering */
+.ocr-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+.ocr-content td, .ocr-content th {
+  border: 1px solid #d9d9d9;
+  padding: 6px 10px;
+  text-align: center;
+  font-size: 13px;
+}
+.ocr-content td:first-child {
+  font-weight: 600;
+  background: #fafafa;
+}
+.ocr-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}

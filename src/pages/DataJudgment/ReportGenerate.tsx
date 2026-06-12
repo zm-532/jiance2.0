@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Row, Col, Card, Table, Tag, Button, Select, Space, Modal, Descriptions, Divider } from 'antd'
 import { FileTextOutlined, EyeOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons'
-import { reportTemplates, experimentRecords } from '../../mock/data'
+import { reportTemplates, experimentRecords, capabilityItems } from '../../mock/data'
 
 const { Option } = Select
 
@@ -11,10 +11,25 @@ export default function ReportGenerate() {
   const [selectedRecord, setSelectedRecord] = useState<string>('')
 
   // 根据模板筛选相关实验数据
-  const relatedRecords = selectedTemplate
+  const template = reportTemplates.find(t => t.id === selectedTemplate)
+
+  const relatedRecords = selectedTemplate && template
     ? experimentRecords.filter(r => {
-        const template = reportTemplates.find(t => t.id === selectedTemplate)
-        return template && r.sampleName.includes(template.category.replace('屏体', ''))
+        // 匹配：金属屏体→含"金属屏体"或"屏体"，亚克力→含"亚克力"，PC板→含"PC"
+        const cat = template.category
+        if (cat === '金属屏体') return r.sampleName.includes('屏体') || r.sampleName.includes('金属')
+        if (cat === '亚克力') return r.sampleName.includes('亚克力') || r.sampleName.includes('透明')
+        return r.sampleName.includes(cat)
+      })
+    : []
+
+  // 根据模板筛选能力表检测项
+  const relatedCapabilities = selectedTemplate && template
+    ? capabilityItems.filter(c => {
+        const cat = template.category
+        if (cat === '金属屏体') return c.sampleName.includes('金属屏体')
+        if (cat === '亚克力') return c.sampleName === '亚克力' || c.sampleName.includes('透明屏体')
+        return c.sampleName.includes(cat)
       })
     : []
 
@@ -31,6 +46,7 @@ export default function ReportGenerate() {
       ),
     },
     { title: '适用类别', dataIndex: 'category', key: 'category', width: 120 },
+    { title: '模板文件', dataIndex: 'file', key: 'file', width: 180, ellipsis: true },
     { title: '版本', dataIndex: 'version', key: 'version', width: 80, align: 'center' as const },
     {
       title: '操作',
@@ -84,7 +100,15 @@ export default function ReportGenerate() {
     },
   ]
 
-  const template = reportTemplates.find(t => t.id === selectedTemplate)
+  const capabilityColumns = [
+    { title: '样品名称', dataIndex: 'sampleName', key: 'sampleName', width: 120, ellipsis: true },
+    { title: '检测项目', dataIndex: 'testItem', key: 'testItem', width: 200 },
+    { title: '判定标准', dataIndex: 'judgmentStandard', key: 'judgmentStandard', width: 180, ellipsis: true },
+    { title: '标准要求', dataIndex: 'standardRequirement', key: 'standardRequirement', width: 100, align: 'center' as const },
+    { title: '检测标准', dataIndex: 'testStandard', key: 'testStandard', width: 160, ellipsis: true },
+    { title: '检测设备', dataIndex: 'equipment', key: 'equipment', width: 160, ellipsis: true },
+  ]
+
   const record = experimentRecords.find(r => r.id === selectedRecord)
 
   return (
@@ -100,6 +124,24 @@ export default function ReportGenerate() {
           pagination={false}
         />
       </div>
+
+      {/* 关联能力表检测项 */}
+      {selectedTemplate && relatedCapabilities.length > 0 && (
+        <div className="dashboard-section" style={{ marginBottom: 20 }}>
+          <h3>
+            检测能力表
+            <Tag color="blue" style={{ marginLeft: 8 }}>{template?.name}</Tag>
+            <span style={{ color: '#999', fontSize: 13, marginLeft: 8 }}>共 {relatedCapabilities.length} 项检测能力</span>
+          </h3>
+          <Table
+            dataSource={relatedCapabilities}
+            columns={capabilityColumns}
+            rowKey="id"
+            size="small"
+            pagination={{ pageSize: 10 }}
+          />
+        </div>
+      )}
 
       {/* 关联实验数据 */}
       {selectedTemplate && (

@@ -144,7 +144,163 @@ for (let i = 1; i < rawSupplier.length; i++) {
 }
 console.log('  提取供应商:', supplierInfo.length);
 
-// ========== 5. 统计计算 ==========
+// ========== 5. 报告智能判定原始数据0608.xlsx → capabilityData ==========
+console.log('读取报告智能判定原始数据0608.xlsx ...');
+const capWb = XLSX.readFile(path.join(docsDir, '报告智能判定原始数据0608.xlsx'));
+
+// 5a. 创新与检测中心检测能力表
+const capWs = capWb.Sheets['创新与检测中心检测能力表'];
+const rawCap = XLSX.utils.sheet_to_json(capWs, { header: 1, defval: '' });
+
+const capabilityItems = [];
+let currentSample = '';
+let currentSpec = '';
+for (let i = 2; i < rawCap.length; i++) {
+  const r = rawCap[i];
+  if (!r || r.every(v => v === '')) continue;
+  // Column C (index 2) = 样品名称, Column D (index 3) = 材料规格 (only set when present)
+  if (r[2]) currentSample = String(r[2]).trim();
+  if (r[3]) currentSpec = String(r[3]).trim();
+  const testItem = String(r[5] || '').trim();
+  if (!testItem) continue;
+
+  capabilityItems.push({
+    id: 'CAP' + String(capabilityItems.length + 1).padStart(3, '0'),
+    sampleName: currentSample,
+    specModel: currentSpec || '',
+    judgmentStandard: String(r[4] || '').trim(),
+    testItem: testItem,
+    materialSpec: String(r[6] || '').trim(),
+    standardRequirement: String(r[7] || '').trim(),
+    testStandard: String(r[8] || '').trim(),
+    equipment: String(r[9] || '').trim(),
+    remark: String(r[10] || '').trim(),
+  });
+}
+console.log('  能力表条目:', capabilityItems.length);
+
+// 5b. 检测样品要求
+const reqWs = capWb.Sheets['检测样品要求'];
+const rawReq = XLSX.utils.sheet_to_json(reqWs, { header: 1, defval: '' });
+
+const sampleRequirements = [];
+let reqSample = '';
+let reqStandard = '';
+for (let i = 1; i < rawReq.length; i++) {
+  const r = rawReq[i];
+  if (!r || r.every(v => v === '')) continue;
+  if (r[1]) reqSample = String(r[1]).trim();
+  if (r[2]) reqStandard = String(r[2]).trim();
+  const testItem = String(r[3] || '').trim();
+  if (!testItem) continue;
+
+  sampleRequirements.push({
+    sampleName: reqSample,
+    judgmentStandard: reqStandard,
+    testItem: testItem,
+    sampleSize: String(r[5] || '').trim(),
+  });
+}
+console.log('  样品要求条目:', sampleRequirements.length);
+
+// 5c. 胶条规格表 (Sheet1)
+const stripWs = capWb.Sheets['Sheet1'];
+const rawStrip = XLSX.utils.sheet_to_json(stripWs, { header: 1, defval: '' });
+
+const stripSpecs = [];
+let currentType = '';
+for (let i = 1; i < rawStrip.length; i++) {
+  const r = rawStrip[i];
+  if (!r || r.every(v => v === '')) continue;
+  if (r[0]) currentType = String(r[0]).trim();
+  const model = String(r[1] || '').trim();
+  if (!model) continue;
+  const names = [r[2], r[3]].filter(v => v).map(v => String(v).trim());
+  stripSpecs.push({
+    category: currentType,
+    model: model,
+    commonNames: names,
+  });
+}
+console.log('  胶条规格:', stripSpecs.length);
+
+// ========== 5d. 检测项表单-实际图片-0608.xlsx → ocrRules ==========
+console.log('读取检测项表单-实际图片-0608.xlsx ...');
+const ocrWb = XLSX.readFile(path.join(docsDir, '检测项表单-实际图片-0608.xlsx'));
+const ocrWs = ocrWb.Sheets['Sheet1'];
+const rawOcr = XLSX.utils.sheet_to_json(ocrWs, { header: 1, defval: '' });
+
+const ocrRules = [];
+let ocrSample = '';
+for (let i = 1; i < rawOcr.length; i++) {
+  const r = rawOcr[i];
+  if (!r || r.every(v => v === '')) continue;
+  if (r[2]) ocrSample = String(r[2]).trim();
+
+  const desc = String(r[9] || '').trim();
+  const hasImage = String(r[8] || '').includes('DISPIMG');
+
+  // Parse 图片说明 into structured rules
+  let ruleType = 'unknown';
+  let preConditions = '';
+  let recognitionContent = '';
+  let calculationMethod = '';
+
+  if (desc === '过程试验') {
+    ruleType = 'process';
+  } else if (desc === '定性试验无具体值' || desc === '定性试验无量值') {
+    ruleType = 'qualitative';
+  } else if (desc.includes('前置条件') || desc.includes('识别内容')) {
+    ruleType = 'quantitative';
+    const parts = desc.split(/\n/);
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed.startsWith('前置条件')) {
+        preConditions = trimmed.replace(/^前置条件[：:]\s*/, '');
+      } else if (trimmed.startsWith('识别内容')) {
+        recognitionContent = trimmed.replace(/^识别内容[：:]\s*/, '');
+      }
+    }
+    // Detect calculation method
+    if (desc.includes('自动计算平均值')) {
+      calculationMethod = 'average';
+    } else if (desc.includes('计算') && desc.includes('平均')) {
+      calculationMethod = 'average';
+    } else {
+      calculationMethod = 'direct';
+    }
+  } else if (desc) {
+    ruleType = 'other';
+    recognitionContent = desc;
+  }
+
+  ocrRules.push({
+    id: 'OCR' + String(ocrRules.length + 1).padStart(3, '0'),
+    equipment: String(r[1] || '').trim(),
+    sampleName: ocrSample,
+    judgmentStandard: String(r[3] || '').trim(),
+    testItem: String(r[4] || '').trim(),
+    subItem: String(r[5] || '').trim(),
+    standardRequirement: String(r[6] || '').trim(),
+    testStandard: String(r[7] || '').trim(),
+    hasImage: hasImage,
+    imageDescription: desc,
+    ruleType: ruleType,
+    preConditions: preConditions,
+    recognitionContent: recognitionContent,
+    calculationMethod: calculationMethod,
+  });
+}
+console.log('  OCR规则条目:', ocrRules.length);
+
+// OCR rule stats
+const ocrWithImage = ocrRules.filter(r => r.hasImage).length;
+const ocrQuantitative = ocrRules.filter(r => r.ruleType === 'quantitative').length;
+const ocrQualitative = ocrRules.filter(r => r.ruleType === 'qualitative').length;
+const ocrProcess = ocrRules.filter(r => r.ruleType === 'process').length;
+console.log('  含图片:', ocrWithImage, '| 定量:', ocrQuantitative, '| 定性:', ocrQualitative, '| 过程:', ocrProcess);
+
+// ========== 6. 统计计算 ==========
 console.log('计算统计数据 ...');
 
 // 样品类别
@@ -378,7 +534,7 @@ for (let i = 2; i < rawApp.length; i++) {
 }
 const supplierInfoCount = supplierInfo.length;
 
-// ========== 6. 输出 ==========
+// ========== 7. 输出 ==========
 const output = {
   records,
   allRecordsCount,
@@ -407,6 +563,10 @@ const output = {
   approvalStats,
   photoCount,
   monthlyAppVolume,
+  capabilityItems,
+  sampleRequirements,
+  stripSpecs,
+  ocrRules,
 };
 
 const jsonStr = JSON.stringify(output);
@@ -422,5 +582,9 @@ console.log('材料统计:', materialStats.length);
 console.log('设备统计:', equipmentStats.length);
 console.log('检测时效:', timelinessData.length);
 console.log('送样图片:', photoCount);
+console.log('能力表条目:', capabilityItems.length);
+console.log('样品要求:', sampleRequirements.length);
+console.log('胶条规格:', stripSpecs.length);
+console.log('OCR规则:', ocrRules.length);
 console.log('输出文件:', outPath);
 console.log('文件大小:', sizeMB, 'MB');

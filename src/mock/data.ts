@@ -1,5 +1,8 @@
 // ============================================================
-// 真实数据 - 声屏障检测管理平台 (基于台账.xlsx)
+// 真实数据 - 声屏障检测管理平台
+// 数据来源: 台账.xlsx, 样品检测登记.xlsx, 委托申请单.xlsx,
+//           供应商信息.xlsx, 实验室检测设备台账2025(9).xlsx,
+//           报告智能判定原始数据0608.xlsx
 // ============================================================
 import realDataJson from './realData.json'
 import realDevicesJson from './realDevices.json'
@@ -48,6 +51,49 @@ export interface TimelinessRecord {
   testItem: string
   avgDays: number
   sampleCount: number
+}
+
+export interface CapabilityItem {
+  id: string
+  sampleName: string
+  specModel: string
+  judgmentStandard: string
+  testItem: string
+  materialSpec: string
+  standardRequirement: string
+  testStandard: string
+  equipment: string
+  remark: string
+}
+
+export interface SampleRequirement {
+  sampleName: string
+  judgmentStandard: string
+  testItem: string
+  sampleSize: string
+}
+
+export interface StripSpec {
+  category: string
+  model: string
+  commonNames: string[]
+}
+
+export interface OCRRule {
+  id: string
+  equipment: string
+  sampleName: string
+  judgmentStandard: string
+  testItem: string
+  subItem: string
+  standardRequirement: string
+  testStandard: string
+  hasImage: boolean
+  imageDescription: string
+  ruleType: 'quantitative' | 'qualitative' | 'process' | 'unknown' | 'other'
+  preConditions: string
+  recognitionContent: string
+  calculationMethod: 'average' | 'direct'
 }
 
 export interface Device {
@@ -258,14 +304,59 @@ export const devices: Device[] = (realDevicesJson as any[]).map(d => ({
   calibrationStatus: getCalibrationStatus(d),
 }))
 
-// 报告模板（基于docs/报告模板文件夹）
+// 能力表数据（来自报告智能判定原始数据0608.xlsx）
+export const capabilityItems: CapabilityItem[] = (raw.capabilityItems || []).map((c: any) => ({
+  id: c.id,
+  sampleName: c.sampleName,
+  specModel: c.specModel || '',
+  judgmentStandard: c.judgmentStandard || '',
+  testItem: c.testItem,
+  materialSpec: c.materialSpec || '',
+  standardRequirement: c.standardRequirement || '',
+  testStandard: c.testStandard || '',
+  equipment: c.equipment || '',
+  remark: c.remark || '',
+}))
+
+export const sampleRequirements: SampleRequirement[] = (raw.sampleRequirements || []).map((r: any) => ({
+  sampleName: r.sampleName,
+  judgmentStandard: r.judgmentStandard || '',
+  testItem: r.testItem,
+  sampleSize: r.sampleSize || '',
+}))
+
+export const stripSpecs: StripSpec[] = (raw.stripSpecs || []).map((s: any) => ({
+  category: s.category,
+  model: s.model,
+  commonNames: s.commonNames || [],
+}))
+
+// OCR识别规则（来自检测项表单-实际图片-0608.xlsx）
+export const ocrRules: OCRRule[] = (raw.ocrRules || []).map((r: any) => ({
+  id: r.id,
+  equipment: r.equipment,
+  sampleName: r.sampleName,
+  judgmentStandard: r.judgmentStandard || '',
+  testItem: r.testItem,
+  subItem: r.subItem || '',
+  standardRequirement: r.standardRequirement || '',
+  testStandard: r.testStandard || '',
+  hasImage: r.hasImage || false,
+  imageDescription: r.imageDescription || '',
+  ruleType: r.ruleType || 'unknown',
+  preConditions: r.preConditions || '',
+  recognitionContent: r.recognitionContent || '',
+  calculationMethod: r.calculationMethod || 'direct',
+}))
+
+// 从能力表提取的样品类别列表
+export const capabilitySampleNames: string[] = [...new Set(capabilityItems.map(c => c.sampleName))].sort()
+
+// 报告模板（基于能力表样品类别，匹配检测报告模板文件）
 export const reportTemplates = [
-  { id: 'R001', name: '检测报告-金属屏体', category: '金属屏体', version: 'v9.9' },
-  { id: 'R002', name: '检测报告-透明屏体（亚克力）', category: '亚克力', version: 'v9.9' },
-  { id: 'R003', name: '检测报告-PC板', category: 'PC板', version: 'v9.9' },
-  { id: 'R004', name: '检测报告-胶条', category: '橡胶条', version: 'v1.0' },
-  { id: 'R005', name: '检测报告-非金属屏体', category: '非金属屏体', version: 'v1.0' },
-  { id: 'R006', name: '检测报告-岩棉', category: '岩棉', version: 'v1.0' },
+  { id: 'R001', name: '检测报告模版-1', category: '金属屏体', version: 'v1.0', file: '检测报告模版-1.docx' },
+  { id: 'R002', name: '检测报告模版-2', category: '亚克力', version: 'v1.0', file: '检测报告模版-2.docx' },
+  { id: 'R003', name: '检测报告模版-3', category: 'PC板', version: 'v1.0', file: '检测报告模版-3.docx' },
 ]
 
 // 供应商基础信息（144家，来自钉钉工作台）
