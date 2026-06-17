@@ -2,9 +2,28 @@
 const XLSX = require('xlsx');
 const fs = require('fs');
 const path = require('path');
+const {
+  buildSupplierStats,
+  buildMaterialStats,
+  buildTimelinessData,
+} = require('./stats-helpers.cjs');
 
 const docsDir = path.join(__dirname, '..', 'docs');
 const outPath = path.join(__dirname, '..', 'src', 'mock', 'realData.json');
+const holidaysPath = path.join(__dirname, '..', 'src', 'mock', 'holidays.json');
+
+function readHolidayCalendar() {
+  if (!fs.existsSync(holidaysPath)) {
+    console.warn('未找到 holidays.json，时效性统计将标记缺法定节假日数据');
+    return null;
+  }
+  try {
+    return JSON.parse(fs.readFileSync(holidaysPath, 'utf-8'));
+  } catch (err) {
+    console.warn('读取 holidays.json 失败，时效性统计将标记缺法定节假日数据:', err.message);
+    return null;
+  }
+}
 
 function readSheet(filePath) {
   const wb = XLSX.readFile(filePath);
@@ -313,77 +332,9 @@ const manufacturerSet = new Set();
 records.forEach(r => { if (r.manufacturer) manufacturerSet.add(r.manufacturer); });
 const manufacturers = Array.from(manufacturerSet).sort();
 
-// 供应商统计
-const supplierMap = new Map();
-regRecords.forEach(r => {
-  if (!r.manufacturer || !r.sampleName) return;
-  const key = r.manufacturer + '||' + r.sampleName;
-  if (!supplierMap.has(key)) {
-    supplierMap.set(key, {
-      manufacturer: r.manufacturer,
-      sampleName: r.sampleName,
-      totalBatches: 0,
-      qualifiedBatches: 0,
-      unqualifiedBatches: 0,
-      pendingBatches: 0,
-    });
-  }
-  const s = supplierMap.get(key);
-  s.totalBatches++;
-  if (r.testStatus === '已完成' || r.testStatus === '检测完成') {
-    // Check judgment from records
-    s.qualifiedBatches++; // default to qualified if completed
-  } else if (r.testStatus === '检测中') {
-    s.pendingBatches++;
-  }
-});
-
-// Refine qualification from experiment records
-records.forEach(r => {
-  if (!r.manufacturer || !r.sampleName) return;
-  const key = r.manufacturer + '||' + r.sampleName;
-  if (!supplierMap.has(key)) return;
-  // Don't double count, just use regRecords for batch counts
-});
-
-// For unqualified, check experiment records judgment
-const unqualBySupplier = new Map();
-records.forEach(r => {
-  if (r.judgment && r.judgment.includes('不合格')) {
-    const key = r.manufacturer + '||' + r.sampleName;
-    unqualBySupplier.set(key, (unqualBySupplier.get(key) || 0) + 1);
-  }
-});
-
-const supplierStats = Array.from(supplierMap.values()).map(s => {
-  const key = s.manufacturer + '||' + s.sampleName;
-  const unqual = unqualBySupplier.get(key) || 0;
-  s.unqualifiedBatches = unqual;
-  s.qualifiedBatches = s.totalBatches - s.pendingBatches - unqual;
-  if (s.qualifiedBatches < 0) s.qualifiedBatches = 0;
-  s.qualifyRate = s.totalBatches > 0 ? +((s.qualifiedBatches / (s.totalBatches - s.pendingBatches)) * 100).toFixed(1) : 0;
-  if (isNaN(s.qualifyRate) || !isFinite(s.qualifyRate)) s.qualifyRate = 0;
-  return s;
-}).sort((a, b) => b.totalBatches - a.totalBatches);
-
-// 材料统计
-const materialMap = new Map();
-supplierStats.forEach(s => {
-  if (!s.sampleName) return;
-  if (!materialMap.has(s.sampleName)) {
-    materialMap.set(s.sampleName, { material: s.sampleName, supplierCount: 0, totalBatches: 0, qualifiedBatches: 0 });
-  }
-  const m = materialMap.get(s.sampleName);
-  m.supplierCount++;
-  m.totalBatches += s.totalBatches;
-  m.qualifiedBatches += s.qualifiedBatches;
-});
-const materialStats = Array.from(materialMap.values()).map(m => ({
-  material: m.material,
-  supplierCount: m.supplierCount,
-  totalBatches: m.totalBatches,
-  avgQualifyRate: m.totalBatches > 0 ? +((m.qualifiedBatches / m.totalBatches) * 100).toFixed(1) : 0,
-})).sort((a, b) => b.totalBatches - a.totalBatches);
+// 供应商/材料统计：按唯一委托批次聚合，避免同一批次多个检测项目被重复计数
+const supplierStats = buildSupplierStats(regRecords, records);
+const materialStats = buildMaterialStats(supplierStats);
 
 // 设备统计
 const equipmentMap = new Map();
@@ -464,28 +415,9 @@ const monthlyAppVolume = Array.from(monthlyAppMap.entries())
   .map(([month, applications]) => ({ month, applications }))
   .sort((a, b) => a.month.localeCompare(b.month));
 
-// 检测时效性
-const timelinessMap = new Map();
-regRecords.forEach(r => {
-  if (!r.testItem || !r.receiveDate) return;
-  // Find matching completed records
-  const key = r.testItem;
-  if (!timelinessMap.has(key)) timelinessMap.set(key, { testItem: key, days: [], count: 0, category: '' });
-  const t = timelinessMap.get(key);
-  t.count++;
-  // Categorize
-  if (/硬度|拉伸|撕裂|冲击|弯曲|压缩|伸长|强度/.test(key)) t.category = '力学性能';
-  else if (/老化|臭氧|盐雾|氙灯|紫外|耐候/.test(key)) t.category = '耐候性能';
-  else if (/透光|雾度|光泽/.test(key)) t.category = '光学性能';
-  else if (/吸声|隔声/.test(key)) t.category = '声学性能';
-  else t.category = '其他';
-});
-const timelinessData = Array.from(timelinessMap.values()).map(t => ({
-  category: t.category,
-  testItem: t.testItem,
-  avgDays: 3, // default estimate
-  sampleCount: t.count,
-})).sort((a, b) => b.sampleCount - a.sampleCount);
+// 检测时效性：只计算当前数据可支撑的工作日时效；缺法定节假日和老化规则时显式标记缺数据
+const holidayCalendar = readHolidayCalendar();
+const timelinessData = buildTimelinessData(records, { holidayCalendar });
 
 // 统计汇总
 const statusStats = {};

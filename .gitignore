@@ -11,3 +11,11 @@ tsconfig.tsbuildinfo
 __pycache__/
 *.pyc
 *.pyo
+
+# 旧版本/废弃目录（可手动删除物理目录）
+frontend/
+backend/
+.tmp_docx/
+
+# 用户上传的归档照片（不应提交）
+uploads/

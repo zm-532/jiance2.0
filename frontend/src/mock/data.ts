@@ -33,24 +33,29 @@ export interface SupplierStat {
   manufacturer: string
   sampleName: string
   totalBatches: number
+  inspectedBatches: number
   qualifiedBatches: number
   unqualifiedBatches: number
   pendingBatches: number
-  qualifyRate: number
+  qualifyRate: number | null
 }
 
 export interface MaterialStat {
   material: string
   supplierCount: number
   totalBatches: number
-  avgQualifyRate: number
+  inspectedBatches: number
+  avgQualifyRate: number | null
 }
 
 export interface TimelinessRecord {
   category: string
+  testCategory: string
   testItem: string
-  avgDays: number
+  avgDays: number | null
   sampleCount: number
+  validSampleCount: number
+  missingReason: string
 }
 
 export interface CapabilityItem {

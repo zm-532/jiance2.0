@@ -1,4 +1,4 @@
-import { Row, Col, Table, Select, Statistic, Alert } from 'antd'
+import { Row, Col, Table, Select, Statistic, Alert, Tag } from 'antd'
 import ReactECharts from 'echarts-for-react'
 import { useState } from 'react'
 import { timelinessData } from '../../mock/data'
@@ -22,10 +22,11 @@ export default function TimelinessStats() {
     ? baseFiltered
     : baseFiltered.filter(d => d.testItem === testItemFilter)
 
-  const overallAvg = filtered.length > 0
-    ? +(filtered.reduce((s, d) => s + d.avgDays * d.sampleCount, 0) /
-      filtered.reduce((s, d) => s + d.sampleCount, 0)).toFixed(1)
-    : 0
+  const computable = filtered.filter(d => d.avgDays != null && d.validSampleCount > 0)
+  const overallAvg = computable.length > 0
+    ? +(computable.reduce((s, d) => s + (d.avgDays || 0) * d.validSampleCount, 0) /
+      computable.reduce((s, d) => s + d.validSampleCount, 0)).toFixed(1)
+    : null
 
   // 柱状图
   const barOption = {
@@ -48,7 +49,7 @@ export default function TimelinessStats() {
       data: filtered.map(d => ({
         value: d.avgDays,
         itemStyle: {
-          color: d.avgDays <= 2 ? {
+          color: d.avgDays == null ? '#d9d9d9' : d.avgDays <= 2 ? {
             type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [{ offset: 0, color: '#73d13d' }, { offset: 1, color: '#389e0d' }]
           } : d.avgDays <= 4 ? {
@@ -62,7 +63,12 @@ export default function TimelinessStats() {
         },
       })),
       barWidth: 30,
-      label: { show: true, position: 'top', formatter: '{c}天', color: '#666' },
+      label: {
+        show: true,
+        position: 'top',
+        formatter: (params: any) => params.value == null ? '缺数据' : `${params.value}天`,
+        color: '#666'
+      },
     }],
   }
 
@@ -74,21 +80,31 @@ export default function TimelinessStats() {
       dataIndex: 'avgDays',
       key: 'avgDays',
       align: 'center' as const,
-      sorter: (a: any, b: any) => a.avgDays - b.avgDays,
-      render: (val: number) => (
-        <span style={{ color: val <= 2 ? '#52c41a' : val <= 4 ? '#1677ff' : '#faad14', fontWeight: 600 }}>
-          {val} 天
-        </span>
-      ),
+      sorter: (a: any, b: any) => (a.avgDays ?? 9999) - (b.avgDays ?? 9999),
+      render: (val: number | null, record: any) => val == null
+        ? <Tag color="default">{record.missingReason || '缺数据'}</Tag>
+        : (
+          <span style={{ color: val <= 2 ? '#52c41a' : val <= 4 ? '#1677ff' : '#faad14', fontWeight: 600 }}>
+            {val} 天
+          </span>
+        ),
     },
-    { title: '样本数量', dataIndex: 'sampleCount', key: 'sampleCount', align: 'center' as const },
+    { title: '有效样本', dataIndex: 'validSampleCount', key: 'validSampleCount', align: 'center' as const },
+    { title: '总样本数量', dataIndex: 'sampleCount', key: 'sampleCount', align: 'center' as const },
+    {
+      title: '数据状态',
+      dataIndex: 'missingReason',
+      key: 'missingReason',
+      ellipsis: true,
+      render: (val: string) => val ? <Tag>{val}</Tag> : <Tag color="green">可计算</Tag>,
+    },
   ]
 
   return (
     <div>
       <Alert
         message="时效性说明"
-        description="检测时效性 = 实际检测日期 - 收样日期，已自动剔除周六/周日。当天收样当天完成计为0.5天。注：法定节假日剔除和老化时间去除需后续接入配置数据。"
+        description="检测时效性 = 实际检测日期 - 收样日期。当前只对具备收样/检测日期且不涉及老化扣除规则的记录计算工作日时效；周六/周日已剔除，当天收样当天完成计为0.5天。法定节假日表和老化时长规则缺失时，系统显示“缺数据”而不生成估算值。"
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
@@ -120,13 +136,13 @@ export default function TimelinessStats() {
           </Select>
         </Col>
         <Col span={4}>
-          <Statistic title="平均检测时效" value={overallAvg} suffix="天" />
+          <Statistic title="平均检测时效" value={overallAvg == null ? '缺数据' : overallAvg} suffix={overallAvg == null ? '' : '天'} />
         </Col>
         <Col span={5}>
           <Statistic title="检测项目数" value={filtered.length} suffix="项" />
         </Col>
         <Col span={5}>
-          <Statistic title="总样本数" value={filtered.reduce((s, d) => s + d.sampleCount, 0)} suffix="个" />
+          <Statistic title="有效样本数" value={filtered.reduce((s, d) => s + d.validSampleCount, 0)} suffix="个" />
         </Col>
       </Row>
 

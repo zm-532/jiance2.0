@@ -1,7 +1,14 @@
-import { useState } from 'react'
-import { Row, Col, Card, Table, Tag, Button, Select, Space, Modal, Descriptions, Divider } from 'antd'
-import { FileTextOutlined, EyeOutlined, DownloadOutlined, PrinterOutlined } from '@ant-design/icons'
+import { useEffect, useState } from 'react'
+import {
+  Row, Col, Card, Table, Tag, Button, Select, Space, Modal,
+  Descriptions, Divider, Empty, Image, Tooltip, message,
+} from 'antd'
+import {
+  FileTextOutlined, DownloadOutlined, PrinterOutlined,
+  CameraOutlined, LinkOutlined, BarChartOutlined,
+} from '@ant-design/icons'
 import { reportTemplates, experimentRecords, capabilityItems } from '../../mock/data'
+import { listPhotos, type ArchivedPhoto } from '../../services/ocr'
 
 const { Option } = Select
 
@@ -10,28 +17,50 @@ export default function ReportGenerate() {
   const [previewVisible, setPreviewVisible] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<string>('')
 
-  // 根据模板筛选相关实验数据
+  // 当前选中样品关联的 OCR 归档照片（仅 includeInReport=true 的进入报告）
+  const [reportPhotos, setReportPhotos] = useState<ArchivedPhoto[]>([])
+  const [photosLoading, setPhotosLoading] = useState(false)
+
   const template = reportTemplates.find(t => t.id === selectedTemplate)
 
+  // 关联实验数据:按模板真实 sampleKeyword 匹配(docx 中实际写的样品名)
   const relatedRecords = selectedTemplate && template
-    ? experimentRecords.filter(r => {
-        // 匹配：金属屏体→含"金属屏体"或"屏体"，亚克力→含"亚克力"，PC板→含"PC"
-        const cat = template.category
-        if (cat === '金属屏体') return r.sampleName.includes('屏体') || r.sampleName.includes('金属')
-        if (cat === '亚克力') return r.sampleName.includes('亚克力') || r.sampleName.includes('透明')
-        return r.sampleName.includes(cat)
-      })
+    ? experimentRecords.filter(r => r.sampleName.includes(template.sampleKeyword))
     : []
 
-  // 根据模板筛选能力表检测项
+  // 检测能力表:按模板真实 sampleKeyword 匹配
   const relatedCapabilities = selectedTemplate && template
-    ? capabilityItems.filter(c => {
-        const cat = template.category
-        if (cat === '金属屏体') return c.sampleName.includes('金属屏体')
-        if (cat === '亚克力') return c.sampleName === '亚克力' || c.sampleName.includes('透明屏体')
-        return c.sampleName.includes(cat)
-      })
+    ? capabilityItems.filter(c => c.sampleName.includes(template.sampleKeyword))
     : []
+
+  const record = experimentRecords.find(r => r.id === selectedRecord)
+
+  // 打开预览时拉取对应的 OCR 归档照片
+  useEffect(() => {
+    if (!previewVisible || !record) {
+      setReportPhotos([])
+      return
+    }
+    let cancelled = false
+    setPhotosLoading(true)
+    Promise.all([
+      listPhotos({ entrustNo: record.entrustNo, includeInReport: true }).catch(() => []),
+      listPhotos({ sampleName: record.sampleName, includeInReport: true }).catch(() => []),
+    ])
+      .then(([byEntrust, bySample]) => {
+        const map = new Map<string, ArchivedPhoto>()
+        for (const item of [...byEntrust, ...bySample]) map.set(item.id, item)
+        if (!cancelled) setReportPhotos(Array.from(map.values()))
+      })
+      .catch(err => {
+        console.error('[Report] 加载 OCR 归档失败:', err)
+        if (!cancelled) message.warning(`未加载到 OCR 照片：${err.message}`)
+      })
+      .finally(() => {
+        if (!cancelled) setPhotosLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [previewVisible, record])
 
   const templateColumns = [
     {
@@ -45,24 +74,33 @@ export default function ReportGenerate() {
         </Space>
       ),
     },
-    { title: '适用类别', dataIndex: 'category', key: 'category', width: 120 },
-    { title: '模板文件', dataIndex: 'file', key: 'file', width: 180, ellipsis: true },
-    { title: '版本', dataIndex: 'version', key: 'version', width: 80, align: 'center' as const },
+    { title: '模板文件', dataIndex: 'file', key: 'file', width: 200, ellipsis: true },
+    { title: '总页数', dataIndex: 'pageCount', key: 'pageCount', width: 80, align: 'center' as const,
+      render: (v: number | null) => v == null ? <span style={{ color: '#ccc' }}>-</span> : <Tag>{v} 页</Tag>,
+    },
+    { title: '含图谱', dataIndex: 'hasChart', key: 'hasChart', width: 80, align: 'center' as const,
+      render: (v: boolean) => v
+        ? <Tag color="green" icon={<BarChartOutlined />}>是</Tag>
+        : <Tag color="default">否</Tag>,
+    },
+    { title: '试验前后对比', dataIndex: 'hasPrePostTest', key: 'hasPrePostTest', width: 110, align: 'center' as const,
+      render: (v: boolean) => v
+        ? <Tag color="purple">含</Tag>
+        : <Tag color="default">无</Tag>,
+    },
+    { title: '版本', dataIndex: 'version', key: 'version', width: 70, align: 'center' as const },
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 120,
       render: (_: any, record: any) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            onClick={() => setSelectedTemplate(record.id)}
-          >
-            使用此模板
-          </Button>
-          <Button size="small" icon={<EyeOutlined />}>预览</Button>
-        </Space>
+        <Button
+          type="primary"
+          size="small"
+          onClick={() => setSelectedTemplate(record.id)}
+        >
+          使用此模板
+        </Button>
       ),
     },
   ]
@@ -108,8 +146,6 @@ export default function ReportGenerate() {
     { title: '检测标准', dataIndex: 'testStandard', key: 'testStandard', width: 160, ellipsis: true },
     { title: '检测设备', dataIndex: 'equipment', key: 'equipment', width: 160, ellipsis: true },
   ]
-
-  const record = experimentRecords.find(r => r.id === selectedRecord)
 
   return (
     <div>
@@ -171,11 +207,13 @@ export default function ReportGenerate() {
         title="检测报告预览"
         open={previewVisible}
         onCancel={() => setPreviewVisible(false)}
-        width={800}
+        width={900}
         footer={
           <Space>
-            <Button icon={<PrinterOutlined />}>打印</Button>
-            <Button icon={<DownloadOutlined />} type="primary">导出Word</Button>
+            <Button icon={<PrinterOutlined />} disabled>打印</Button>
+            <Tooltip title="缺少 Word 模板字段映射和后端导出服务，当前不能生成最终报告文件">
+              <Button icon={<DownloadOutlined />} type="primary" disabled>导出Word（缺数据）</Button>
+            </Tooltip>
             <Button onClick={() => setPreviewVisible(false)}>关闭</Button>
           </Space>
         }
@@ -209,9 +247,103 @@ export default function ReportGenerate() {
               <Descriptions.Item label="检测日期">{record.date}</Descriptions.Item>
               <Descriptions.Item label="所属项目" span={2}>{record.project}</Descriptions.Item>
             </Descriptions>
+
+            {/* 试验数据照片附件区：来自 OCR 归档，includeInReport=true */}
+            <Divider orientation="left" plain>
+              <Space>
+                <CameraOutlined />
+                检测照片附件
+                <Tag color="purple">{reportPhotos.length}</Tag>
+              </Space>
+            </Divider>
+
+            {photosLoading ? (
+              <div style={{ textAlign: 'center', color: '#999', padding: 20 }}>加载归档照片...</div>
+            ) : reportPhotos.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <span style={{ color: '#999' }}>
+                    当前样品暂无纳入报告的 OCR 归档照片
+                    <br />
+                    请到「OCR识别」页面上传照片，并将「纳入报告」开关打开
+                  </span>
+                }
+                style={{ padding: '12px 0' }}
+              />
+            ) : (
+              <Row gutter={[12, 12]}>
+                {reportPhotos.map(p => (
+                  <Col span={8} key={p.id}>
+                    <Card
+                      size="small"
+                      hoverable
+                      cover={
+                        <div style={{
+                          height: 140, background: '#f0f2f5',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
+                          <Image
+                            src={p.photoUrl}
+                            width="100%"
+                            height={140}
+                            style={{ objectFit: 'cover' }}
+                            preview={{ mask: '点击查看大图' }}
+                          />
+                        </div>
+                      }
+                    >
+                      <Card.Meta
+                        title={
+                          <Tooltip title={p.originalName}>
+                            <span style={{ fontSize: 12 }}>{p.originalName}</span>
+                          </Tooltip>
+                        }
+                        description={
+                          <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                            <Space size={4} wrap>
+                              <Tag color="blue" style={{ fontSize: 11 }}>{p.testItem || '未匹配'}</Tag>
+                              <Tag color={p.judgment === '合格' ? 'green' : p.judgment === '不合格' ? 'red' : 'default'} style={{ fontSize: 11 }}>
+                                {p.recognizedValue || '-'} · {p.judgment}
+                              </Tag>
+                            </Space>
+                            <Space size={4} style={{ marginTop: 4 }}>
+                              <Button
+                                size="small"
+                                type="link"
+                                icon={<LinkOutlined />}
+                                onClick={() => window.open(p.photoUrl, '_blank')}
+                                style={{ padding: 0 }}
+                              >
+                                原图
+                              </Button>
+                              <Button
+                                size="small"
+                                type="link"
+                                icon={<DownloadOutlined />}
+                                onClick={() => window.open(`/api/ocr/photos/${p.id}/download`, '_blank')}
+                                style={{ padding: 0 }}
+                              >
+                                下载
+                              </Button>
+                            </Space>
+                          </Space>
+                        }
+                      />
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            )}
+
             <Divider />
             <div style={{ textAlign: 'center', color: '#999', fontSize: 12 }}>
               此报告由系统自动生成 | 宜塔报告模板 {template?.version}
+              <br />
+              <span style={{ fontSize: 11 }}>
+                说明：当前缺少 Word 模板字段映射和后端导出服务，暂不生成最终报告文件；已纳入报告的照片提供原图访问与下载链接。
+              </span>
             </div>
           </div>
         )}

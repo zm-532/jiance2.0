@@ -6,6 +6,7 @@
 // ============================================================
 import realDataJson from './realData.json'
 import realDevicesJson from './realDevices.json'
+import equipmentReferenceData from './equipmentReference.json'
 
 // ---- 类型定义 ----
 
@@ -26,6 +27,7 @@ export interface ExperimentRecord {
   equipment: string
   testStandard: string
   receiveDate: string
+  testDate: string
   photos: string[]
 }
 
@@ -33,24 +35,29 @@ export interface SupplierStat {
   manufacturer: string
   sampleName: string
   totalBatches: number
+  inspectedBatches: number
   qualifiedBatches: number
   unqualifiedBatches: number
   pendingBatches: number
-  qualifyRate: number
+  qualifyRate: number | null
 }
 
 export interface MaterialStat {
   material: string
   supplierCount: number
   totalBatches: number
-  avgQualifyRate: number
+  inspectedBatches: number
+  avgQualifyRate: number | null
 }
 
 export interface TimelinessRecord {
   category: string
+  testCategory: string
   testItem: string
-  avgDays: number
+  avgDays: number | null
   sampleCount: number
+  validSampleCount: number
+  missingReason: string
 }
 
 export interface CapabilityItem {
@@ -131,6 +138,7 @@ export const experimentRecords: ExperimentRecord[] = raw.records.map((r: any) =>
   specModel: r.specModel,
   manufacturer: r.manufacturer,
   date: r.testDate,
+  testDate: r.testDate,
   testItem: r.testItem,
   judgment: r.judgment,
   requirement: r.requirement,
@@ -354,9 +362,12 @@ export const capabilitySampleNames: string[] = [...new Set(capabilityItems.map(c
 
 // 报告模板（基于能力表样品类别，匹配检测报告模板文件）
 export const reportTemplates = [
-  { id: 'R001', name: '检测报告模版-1', category: '金属屏体', version: 'v1.0', file: '检测报告模版-1.docx' },
-  { id: 'R002', name: '检测报告模版-2', category: '亚克力', version: 'v1.0', file: '检测报告模版-2.docx' },
-  { id: 'R003', name: '检测报告模版-3', category: 'PC板', version: 'v1.0', file: '检测报告模版-3.docx' },
+  // sampleKeyword 来源: 解析 docs/检测报告模板/*.docx 中 word/document.xml 的"样品名称"字段
+  // 实际三份 docx 写的样品名都是「金属吸隔声板」
+  // pageCount/hasChart/hasPrePostTest 来源: scripts/extractReportTemplates.cjs(2026-06-12 抽取)
+  { id: 'R001', name: '检测报告模版-1', sampleKeyword: '金属吸隔声板', category: '金属屏体', version: 'v1.0', file: '检测报告模版-1.docx', pageCount: 5, hasChart: true, hasPrePostTest: false },
+  { id: 'R002', name: '检测报告模版-2', sampleKeyword: '金属吸隔声板', category: '亚克力', version: 'v1.0', file: '检测报告模版-2.docx', pageCount: 6, hasChart: true, hasPrePostTest: true },
+  { id: 'R003', name: '检测报告模版-3', sampleKeyword: '金属吸隔声板', category: 'PC板', version: 'v1.0', file: '检测报告模版-3.docx', pageCount: 3, hasChart: false, hasPrePostTest: false },
 ]
 
 // 供应商基础信息（144家，来自钉钉工作台）
@@ -392,3 +403,164 @@ export const supplierList = supplierStats.map((s, i) => ({
   pendingBatches: s.pendingBatches,
   qualifyRate: s.qualifyRate,
 }))
+
+// ============================================================
+// 追加: 实验室检测设备统计（1.9）.xlsx 的真实数据
+// 说明: 这些字段来源于独立的 Excel 源,与上面的 devices 数组(来自
+//       实验室检测设备台账2025(9).xlsx 等)互不重叠,只追加,不覆盖。
+// ============================================================
+
+// --- 仪器台账(2025/2024/2023 三个 sheet 合并) ---
+export interface EquipmentInstrument {
+  id: string | null                      // 仪器编号 ZC-XX
+  name: string | null
+  dataStorage: string | null             // 检测数据存储方式
+  manufacturer: string | null
+  model: string | null
+  serialNo: string | null                // 出厂编号
+  productionDate: string | null
+  measurementRange: string | null
+  status: string | null                  // 正常 / 未到
+  functionDesc: string | null
+  location: string | null
+  acceptanceDate: string | null
+  validUntil: string | null              // 有效日期(可能为"一年"等周期描述)
+  specCategory: string | null            // 规格种类①扩展不确定度②最大允差③准确度等级
+  calibrationUnit: string | null
+  calibrationCertNo: string | null
+  calibrationDate: string | null         // ISO YYYY-MM-DD
+  nextCalibrationDate: string | null
+  contact: string | null
+  remark: string | null
+  dbType: string | null
+  sourceYear: 2025 | 2024 | 2023
+  sourceSheet: string
+}
+
+// --- 标准物质 ---
+export interface StandardMaterial {
+  no: number | null
+  id: string | null                      // BZWZ-XX
+  name: string | null
+  spec: string | null
+  serialNo: string | null
+  measurementRange: string | null
+  uncertainty: string | null
+  calibrationUnit: string | null
+  certNo: string | null
+  calibrationDate: string | null
+  nextCalibrationDate: string | null
+  sourceYear: 2025 | 2024
+}
+
+// --- 设备价格 ---
+export interface DevicePrice {
+  seq: number | null
+  deviceName: string | null
+  quantity: number | null
+  unitPrice: number | null
+  sourceCategory: string | null
+  note: string | null
+}
+
+// --- 校准方案(计划版/执行版) ---
+export interface CalibrationPlan {
+  seq: number | null
+  deviceId: string | null
+  deviceName: string | null
+  manufacturer: string | null
+  model: string | null
+  serialNo: string | null
+  itemAndRange: string | null
+  accuracy: string | null
+  cycle: string | null
+  plannedDate: string | null
+  nextDate: string | null
+  remark: string | null
+  planVersion: '计划版' | '执行版'
+}
+
+// --- 校准计划(实际执行情况) ---
+export interface CalibrationExecution {
+  seq: number | null
+  deviceName: string | null
+  deviceId: string | null
+  quantity: number | null
+  validPeriod: string | null
+  lastCalibrationDate: string | null
+  nextCalibrationDate: string | null
+  remark: string | null
+}
+
+// 直接导出原始数组(纯数据,不参与上面的 getCalibrationStatus 计算)
+export const equipmentInstruments: EquipmentInstrument[] =
+  (equipmentReferenceData as any).instruments || []
+export const standardMaterials: StandardMaterial[] =
+  (equipmentReferenceData as any).standardMaterials || []
+export const devicePrices: DevicePrice[] =
+  (equipmentReferenceData as any).devicePrices || []
+export const calibrationPlans: CalibrationPlan[] =
+  (equipmentReferenceData as any).calibrationPlans || []
+export const calibrationExecutions: CalibrationExecution[] =
+  (equipmentReferenceData as any).calibrationExecutions || []
+
+// --- 基于 equipmentInstruments 的派生统计(只读真实数据,不假造) ---
+
+// 当年(2025)在用仪器(忽略 2024/2023 历史版本)
+export const currentInstruments: EquipmentInstrument[] = equipmentInstruments.filter(
+  (d) => d.sourceYear === 2025 && d.status !== '未到',
+)
+
+// 设备位置分布(从 2025 sheet)
+export interface LocationCount { location: string; count: number }
+export const equipmentLocationStats: LocationCount[] = (() => {
+  const map: Record<string, number> = {}
+  for (const d of currentInstruments) {
+    const loc = d.location || '未标注'
+    map[loc] = (map[loc] || 0) + 1
+  }
+  return Object.entries(map)
+    .map(([location, count]) => ({ location, count }))
+    .sort((a, b) => b.count - a.count)
+})()
+
+// 数据来源年份分布
+export interface YearCount { year: 2025 | 2024 | 2023; count: number }
+export const equipmentSourceYearStats: YearCount[] = (() => {
+  const map: Record<number, number> = {}
+  for (const d of equipmentInstruments) {
+    map[d.sourceYear] = (map[d.sourceYear] || 0) + 1
+  }
+  return ([2025, 2024, 2023] as const)
+    .map((year) => ({ year, count: map[year] || 0 }))
+})()
+
+// 基于"下次校准日期"真实计算的校准状态分布
+export interface CalibrationCount { status: string; count: number }
+export const equipmentCalibrationStats: CalibrationCount[] = (() => {
+  const map: Record<string, number> = {}
+  for (const d of currentInstruments) {
+    let status = '无校准数据'
+    if (d.status === '未到') status = '未到货'
+    else if (d.nextCalibrationDate) {
+      const next = new Date(d.nextCalibrationDate)
+      const now = new Date()
+      if (next < now) status = '已过期'
+      else {
+        const diffDays = (next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        status = diffDays <= 30 ? '即将到期' : '正常'
+      }
+    }
+    map[status] = (map[status] || 0) + 1
+  }
+  return Object.entries(map).map(([status, count]) => ({ status, count }))
+})()
+
+// 仪器总数(仅 2025 在用, 与原 devices 互不重叠)
+export const equipmentInstrumentsCurrentCount = currentInstruments.length
+
+// 设备使用频次统计(来自 台账.xlsx 真实数据,已经由 extractAllData.cjs 生成)
+// 结构: { name: string, totalTests: number }
+export interface EquipmentStat { name: string; totalTests: number }
+export const equipmentStats: EquipmentStat[] = (realDataJson as any).equipmentStats || []
+

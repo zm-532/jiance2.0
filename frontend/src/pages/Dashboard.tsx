@@ -136,10 +136,14 @@ export default function Dashboard() {
                       <TableCell className="font-medium">{item.material}</TableCell>
                       <TableCell className="text-center">{item.supplierCount}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={item.avgQualifyRate} className="h-2 flex-1" />
-                          <span className="text-xs w-10 text-right">{item.avgQualifyRate}%</span>
-                        </div>
+                        {item.avgQualifyRate == null ? (
+                          <span className="text-xs text-muted-foreground">缺数据</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Progress value={item.avgQualifyRate} className="h-2 flex-1" />
+                            <span className="text-xs w-10 text-right">{item.avgQualifyRate}%</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">{item.totalBatches}</TableCell>
                     </TableRow>

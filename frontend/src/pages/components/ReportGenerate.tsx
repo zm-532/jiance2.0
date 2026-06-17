@@ -189,12 +189,14 @@ export default function ReportGenerate() {
               </div>
               <div className="text-center text-xs text-muted-foreground mt-4">
                 此报告由系统自动生成 | 宜塔报告模板 {template?.version}
+                <br />
+                当前缺少 Word 模板字段映射和后端导出服务，暂不生成最终报告文件。
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline"><Printer className="size-4 mr-1" /> 打印</Button>
-            <Button><Download className="size-4 mr-1" /> 导出Word</Button>
+            <Button variant="outline" disabled><Printer className="size-4 mr-1" /> 打印</Button>
+            <Button disabled><Download className="size-4 mr-1" /> 导出Word（缺数据）</Button>
             <Button variant="secondary" onClick={() => setPreviewVisible(false)}>关闭</Button>
           </DialogFooter>
         </DialogContent>

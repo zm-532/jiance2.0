@@ -25,7 +25,9 @@ export default function SupplierStats() {
       data: materialStats.map((c) => ({
         value: c.avgQualifyRate,
         itemStyle: {
-          color: c.avgQualifyRate >= 95
+          color: c.avgQualifyRate == null
+            ? "#d9d9d9"
+            : c.avgQualifyRate >= 95
             ? { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#73d13d" }, { offset: 1, color: "#389e0d" }] }
             : c.avgQualifyRate >= 90
             ? { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#4096ff" }, { offset: 1, color: "#0958d9" }] }
@@ -33,7 +35,12 @@ export default function SupplierStats() {
           borderRadius: [4, 4, 0, 0],
         },
       })),
-      label: { show: true, position: "top" as const, formatter: "{c}%", fontSize: 11 },
+      label: {
+        show: true,
+        position: "top" as const,
+        formatter: (params: any) => params.value == null ? "缺数据" : `${params.value}%`,
+        fontSize: 11,
+      },
     }],
   };
 
@@ -74,7 +81,7 @@ export default function SupplierStats() {
                 <div className="grid grid-cols-4 gap-4 mb-4">
                   <div className="text-center"><div className="text-2xl font-bold">{filteredSuppliers.length}</div><div className="text-xs text-muted-foreground">供应商数量</div></div>
                   <div className="text-center"><div className="text-2xl font-bold">{filteredSuppliers.reduce((s, sp) => s + sp.totalBatches, 0)}</div><div className="text-xs text-muted-foreground">总送检批次</div></div>
-                  <div className="text-center"><div className="text-2xl font-bold text-green-600">{filteredSuppliers.reduce((s, sp) => s + sp.qualifiedBatches, 0)}</div><div className="text-xs text-muted-foreground">合格批次</div></div>
+                  <div className="text-center"><div className="text-2xl font-bold">{filteredSuppliers.reduce((s, sp) => s + (sp.inspectedBatches || 0), 0)}</div><div className="text-xs text-muted-foreground">检验批次数</div></div>
                   <div className="text-center"><div className="text-2xl font-bold text-red-600">{filteredSuppliers.reduce((s, sp) => s + sp.unqualifiedBatches, 0)}</div><div className="text-xs text-muted-foreground">不合格批次</div></div>
                 </div>
                 <Table>
@@ -82,6 +89,7 @@ export default function SupplierStats() {
                     <TableRow>
                       <TableHead>供应商名称</TableHead>
                       <TableHead className="text-center">送检批次数</TableHead>
+                      <TableHead className="text-center">检验批次数</TableHead>
                       <TableHead className="text-center">合格批次</TableHead>
                       <TableHead className="text-center">不合格批次</TableHead>
                       <TableHead className="text-center">待定批次</TableHead>
@@ -93,14 +101,19 @@ export default function SupplierStats() {
                       <TableRow key={idx}>
                         <TableCell className="truncate max-w-[280px]">{s.manufacturer}</TableCell>
                         <TableCell className="text-center">{s.totalBatches}</TableCell>
+                        <TableCell className="text-center">{s.inspectedBatches}</TableCell>
                         <TableCell className="text-center text-green-600">{s.qualifiedBatches}</TableCell>
                         <TableCell className="text-center text-red-600">{s.unqualifiedBatches}</TableCell>
                         <TableCell className="text-center">{s.pendingBatches}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress value={s.qualifyRate} className="h-2 flex-1" />
-                            <span className="text-xs w-10 text-right">{s.qualifyRate}%</span>
-                          </div>
+                          {s.qualifyRate == null ? (
+                            <span className="text-xs text-muted-foreground">缺数据</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Progress value={s.qualifyRate} className="h-2 flex-1" />
+                              <span className="text-xs w-10 text-right">{s.qualifyRate}%</span>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

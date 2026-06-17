@@ -16,9 +16,10 @@ export default function TimelinessStats() {
   const availableTestItems = [...new Set(baseFiltered.map((d) => d.testItem))];
   const filtered = testItemFilter === "all" ? baseFiltered : baseFiltered.filter((d) => d.testItem === testItemFilter);
 
-  const overallAvg = filtered.length > 0
-    ? +(filtered.reduce((s, d) => s + d.avgDays * d.sampleCount, 0) / filtered.reduce((s, d) => s + d.sampleCount, 0)).toFixed(1)
-    : 0;
+  const computable = filtered.filter((d) => d.avgDays != null && d.validSampleCount > 0);
+  const overallAvg = computable.length > 0
+    ? +(computable.reduce((s, d) => s + (d.avgDays || 0) * d.validSampleCount, 0) / computable.reduce((s, d) => s + d.validSampleCount, 0)).toFixed(1)
+    : null;
 
   const barOption = {
     tooltip: { trigger: "axis" as const, formatter: (params: any) => `${params[0].name}<br/>平均检测时效: ${params[0].value} 天` },
@@ -33,7 +34,9 @@ export default function TimelinessStats() {
       data: filtered.map((d) => ({
         value: d.avgDays,
         itemStyle: {
-          color: d.avgDays <= 2
+          color: d.avgDays == null
+            ? "#d9d9d9"
+            : d.avgDays <= 2
             ? { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#73d13d" }, { offset: 1, color: "#389e0d" }] }
             : d.avgDays <= 4
             ? { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#4096ff" }, { offset: 1, color: "#0958d9" }] }
@@ -41,14 +44,14 @@ export default function TimelinessStats() {
           borderRadius: [4, 4, 0, 0],
         },
       })),
-      label: { show: true, position: "top" as const, formatter: "{c}天" },
+      label: { show: true, position: "top" as const, formatter: (params: any) => params.value == null ? "缺数据" : `${params.value}天` },
     }],
   };
 
   return (
     <div>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-blue-800">
-        <strong>时效性说明：</strong>检测时效性 = 实际检测日期 - 收样日期，已自动剔除周六/周日。当天收样当天完成计为0.5天。
+        <strong>时效性说明：</strong>当前只对具备收样/检测日期且不涉及老化扣除规则的记录计算工作日时效；周六/周日已剔除，当天收样当天完成计为0.5天。法定节假日表和老化时长规则缺失时显示“缺数据”。
       </div>
 
       <div className="grid grid-cols-5 gap-4 mb-6">
@@ -74,15 +77,15 @@ export default function TimelinessStats() {
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-2">平均检测时效</div>
-          <div className="text-2xl font-bold">{overallAvg} 天</div>
+          <div className="text-2xl font-bold">{overallAvg == null ? "缺数据" : `${overallAvg} 天`}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-2">检测项目数</div>
           <div className="text-2xl font-bold">{filtered.length} 项</div>
         </div>
         <div>
-          <div className="text-sm text-muted-foreground mb-2">总样本数</div>
-          <div className="text-2xl font-bold">{filtered.reduce((s, d) => s + d.sampleCount, 0)} 个</div>
+          <div className="text-sm text-muted-foreground mb-2">有效样本数</div>
+          <div className="text-2xl font-bold">{filtered.reduce((s, d) => s + d.validSampleCount, 0)} 个</div>
         </div>
       </div>
 
@@ -102,7 +105,9 @@ export default function TimelinessStats() {
                 <TableHead>材料类型</TableHead>
                 <TableHead>检测项目</TableHead>
                 <TableHead className="text-center">平均检测时效（天）</TableHead>
-                <TableHead className="text-center">样本数量</TableHead>
+                <TableHead className="text-center">有效样本</TableHead>
+                <TableHead className="text-center">总样本数量</TableHead>
+                <TableHead>数据状态</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -111,11 +116,17 @@ export default function TimelinessStats() {
                   <TableCell>{d.category}</TableCell>
                   <TableCell>{d.testItem}</TableCell>
                   <TableCell className="text-center">
-                    <span className="font-semibold" style={{ color: d.avgDays <= 2 ? "#52c41a" : d.avgDays <= 4 ? "#1677ff" : "#faad14" }}>
-                      {d.avgDays} 天
-                    </span>
+                    {d.avgDays == null ? (
+                      <Badge variant="outline">{d.missingReason || "缺数据"}</Badge>
+                    ) : (
+                      <span className="font-semibold" style={{ color: d.avgDays <= 2 ? "#52c41a" : d.avgDays <= 4 ? "#1677ff" : "#faad14" }}>
+                        {d.avgDays} 天
+                      </span>
+                    )}
                   </TableCell>
+                  <TableCell className="text-center">{d.validSampleCount}</TableCell>
                   <TableCell className="text-center">{d.sampleCount}</TableCell>
+                  <TableCell>{d.missingReason ? <Badge variant="outline">{d.missingReason}</Badge> : <Badge>可计算</Badge>}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

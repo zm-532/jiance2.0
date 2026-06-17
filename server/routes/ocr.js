@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { promises as fs } from 'fs'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, writeFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { randomUUID } from 'crypto'
@@ -18,10 +18,14 @@ const __dirname = path.dirname(__filename)
 const UPLOAD_DIR = path.resolve(__dirname, '..', '..', 'uploads')
 const META_FILE = path.join(UPLOAD_DIR, 'photos.json')
 
-// 启动时确保归档目录与元数据文件存在（docker 部署同样生效）
+// 同步初始化：避免 ESM 顶层 await 兼容问题，并减少启动延迟
 if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
 if (!existsSync(META_FILE)) {
-  await fs.writeFile(META_FILE, '[]', 'utf-8').catch(() => {})
+  try {
+    writeFileSync(META_FILE, '[]', 'utf-8')
+  } catch (err) {
+    console.warn('[OCR] 初始化 photos.json 失败:', err.message)
+  }
 }
 
 async function readMeta() {
@@ -34,7 +38,32 @@ async function readMeta() {
 }
 
 async function writeMeta(list) {
-  await fs.writeFile(META_FILE, JSON.stringify(list, null, 2), 'utf-8')
+  // 先写临时文件再原子 rename，避免写到一半被其他进程读到残缺数据
+  const tmpFile = META_FILE + '.tmp'
+  await fs.writeFile(tmpFile, JSON.stringify(list, null, 2), 'utf-8')
+  await fs.rename(tmpFile, META_FILE)
+}
+
+// ---------- 简易 Promise 互斥锁：序列化所有 readMeta→修改→writeMeta 操作 ----------
+let _metaLock = Promise.resolve()
+
+/**
+ * 在锁保护下执行 meta 读写操作，保证并发安全。
+ * @param {function} fn  async (currentList) => newList | void
+ *   返回新数组时自动写回；返回 void 表示只读。
+ */
+function withMetaLock(fn) {
+  const next = _metaLock.then(async () => {
+    const list = await readMeta()
+    const result = await fn(list)
+    if (result !== undefined && result !== list) {
+      await writeMeta(result)
+    }
+    return result
+  })
+  // 不管成败都继续链，防止后续调用被卡死
+  _metaLock = next.catch(() => {})
+  return next
 }
 
 function safeExt(originalName) {
@@ -68,8 +97,9 @@ const upload = multer({
  * POST /api/ocr/recognize
  * 接收前端上传的照片：
  *   1) 落盘到 uploads/<uuid>.<ext>
- *   2) 元数据写入 photos.json
- *   3) 调用 PaddleOCR 返回识别结果
+ *   2) 元数据写入 photos.json（status: '识别中'）
+ *   3) 提交 PaddleOCR 任务，立即返回 photoId + ocrJobId
+ *   4) 后台继续轮询，完成后更新元数据
  */
 router.post('/recognize', upload.single('file'), async (req, res) => {
   if (!req.file) {
@@ -80,8 +110,6 @@ router.post('/recognize', upload.single('file'), async (req, res) => {
   const photoUrl = `/uploads/${req.file.filename}`
   const uploadedAt = new Date().toISOString()
 
-  // 先把元数据落库（即使 OCR 失败也保留照片归档）
-  const meta = await readMeta()
   const record = {
     id: photoId,
     originalName: req.file.originalname,
@@ -90,7 +118,6 @@ router.post('/recognize', upload.single('file'), async (req, res) => {
     size: req.file.size,
     mimetype: req.file.mimetype,
     uploadedAt,
-    // OCR 字段，识别完成后回填
     ocrStatus: 'pending',
     ocrRawText: '',
     pages: [],
@@ -103,12 +130,16 @@ router.post('/recognize', upload.single('file'), async (req, res) => {
     status: '识别中',
     includeInReport: false,
     error: null,
-    // 关联字段：可由后续录入或自动按样品名匹配
     sampleName: '',
     entrustNo: '',
+    ocrJobId: null,
   }
-  meta.unshift(record)
-  await writeMeta(meta)
+
+  // 先把元数据落库（即使 OCR 失败也保留照片归档）
+  await withMetaLock(async (meta) => {
+    meta.unshift(record)
+    return meta
+  })
 
   try {
     const fileBytes = await fs.readFile(req.file.path)
@@ -136,22 +167,71 @@ router.post('/recognize', upload.single('file'), async (req, res) => {
     }
 
     const jobData = await jobResponse.json()
-    const jobId = jobData.data?.jobId
+    const ocrJobId = jobData.data?.jobId
 
-    if (!jobId) {
+    if (!ocrJobId) {
       await markFailed(photoId, '未获取到 jobId')
       return res.status(502).json({ success: false, photoId, photoUrl, error: '未获取到 jobId' })
     }
 
-    console.log(`[OCR] 任务已提交: ${jobId}, 文件: ${req.file.originalname} → ${req.file.filename}`)
+    console.log(`[OCR] 任务已提交: ${ocrJobId}, 文件: ${req.file.originalname} → ${req.file.filename}`)
 
-    const MAX_POLLS = 60
-    const POLL_INTERVAL = 3000
+    // 保存 jobId 到元数据
+    await withMetaLock(async (list) => {
+      const idx = list.findIndex(p => p.id === photoId)
+      if (idx >= 0) { list[idx].ocrJobId = ocrJobId; return list }
+    })
 
+    // 后台异步轮询，不阻塞当前请求
+    pollOCRResult(photoId, ocrJobId, req.file.originalname)
+
+    // 立即返回，前端通过 GET /api/ocr/jobs/:photoId 轮询结果
+    return res.json({ success: true, photoId, photoUrl, ocrJobId })
+  } catch (err) {
+    console.error('[OCR] 服务错误:', err)
+    await markFailed(photoId, err.message || '服务内部错误')
+    return res.status(500).json({ success: false, photoId, photoUrl, error: err.message || '服务内部错误' })
+  }
+})
+
+/**
+ * GET /api/ocr/jobs/:photoId
+ * 前端轮询接口：返回当前照片的 OCR 状态与结果
+ */
+router.get('/jobs/:photoId', async (req, res) => {
+  try {
+    const list = await readMeta()
+    const item = list.find(p => p.id === req.params.photoId)
+    if (!item) return res.status(404).json({ success: false, error: '任务不存在' })
+
+    return res.json({
+      success: true,
+      photoId: item.id,
+      photoUrl: item.photoUrl,
+      ocrStatus: item.ocrStatus,
+      status: item.status,
+      pages: item.pages || [],
+      rawText: item.ocrRawText || '',
+      tables: item.tables || [],
+      error: item.error,
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+/**
+ * 后台轮询 PaddleOCR 任务结果（不阻塞 HTTP 请求）
+ */
+async function pollOCRResult(photoId, ocrJobId, originalName) {
+  const MAX_POLLS = 60
+  const POLL_INTERVAL = 3000
+
+  try {
     for (let i = 0; i < MAX_POLLS; i++) {
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL))
 
-      const pollResponse = await fetch(`${PADDLEOCR_JOB_URL}/${jobId}`, {
+      const pollResponse = await fetch(`${PADDLEOCR_JOB_URL}/${ocrJobId}`, {
         headers: { 'Authorization': `bearer ${getToken()}` },
       })
 
@@ -164,80 +244,76 @@ router.post('/recognize', upload.single('file'), async (req, res) => {
         const jsonUrl = pollData.data?.resultUrl?.jsonUrl
         if (!jsonUrl) {
           await markFailed(photoId, '未获取到结果 URL')
-          return res.status(502).json({ success: false, photoId, photoUrl, error: '未获取到结果 URL' })
+          return
         }
 
         const resultResponse = await fetch(jsonUrl)
         if (!resultResponse.ok) {
           await markFailed(photoId, '获取识别结果失败')
-          return res.status(502).json({ success: false, photoId, photoUrl, error: '获取识别结果失败' })
+          return
         }
 
         const resultText = await resultResponse.text()
         const parsed = parseOCRResult(resultText)
 
         await markDone(photoId, parsed)
-
-        console.log(`[OCR] 识别完成: ${req.file.originalname}, 文本长度: ${parsed.rawText.length}`)
-        return res.json({
-          success: true,
-          photoId,
-          photoUrl,
-          pages: parsed.pages,
-          rawText: parsed.rawText,
-        })
+        console.log(`[OCR] 识别完成: ${originalName}, 文本长度: ${parsed.rawText.length}, 表格数: ${(parsed.tables || []).length}`)
+        return
       }
 
       if (state === 'failed') {
         const errorMsg = pollData.data?.errorMsg || '识别失败'
         await markFailed(photoId, errorMsg)
-        return res.json({ success: false, photoId, photoUrl, error: errorMsg })
+        return
       }
     }
 
     await markFailed(photoId, '识别超时')
-    return res.status(504).json({ success: false, photoId, photoUrl, error: '识别超时' })
   } catch (err) {
-    console.error('[OCR] 服务错误:', err)
-    await markFailed(photoId, err.message || '服务内部错误')
-    return res.status(500).json({ success: false, photoId, photoUrl, error: err.message || '服务内部错误' })
-  }
-})
-
-async function markFailed(photoId, errorMsg) {
-  const list = await readMeta()
-  const idx = list.findIndex(p => p.id === photoId)
-  if (idx >= 0) {
-    list[idx] = {
-      ...list[idx],
-      ocrStatus: 'failed',
-      status: '识别失败',
-      error: errorMsg,
-    }
-    await writeMeta(list)
+    console.error(`[OCR] 后台轮询异常 (${photoId}):`, err)
+    await markFailed(photoId, err.message || '后台轮询异常')
   }
 }
 
-async function markDone(photoId, parsed) {
-  const list = await readMeta()
-  const idx = list.findIndex(p => p.id === photoId)
-  if (idx >= 0) {
-    list[idx] = {
-      ...list[idx],
-      ocrStatus: 'done',
-      status: '待确认',
-      pages: parsed.pages,
-      ocrRawText: parsed.rawText,
-      error: null,
+async function markFailed(photoId, errorMsg) {
+  await withMetaLock(async (list) => {
+    const idx = list.findIndex(p => p.id === photoId)
+    if (idx >= 0) {
+      list[idx] = {
+        ...list[idx],
+        ocrStatus: 'failed',
+        status: '识别失败',
+        error: errorMsg,
+      }
+      return list
     }
-    await writeMeta(list)
-  }
+  })
+}
+
+async function markDone(photoId, parsed) {
+  await withMetaLock(async (list) => {
+    const idx = list.findIndex(p => p.id === photoId)
+    if (idx >= 0) {
+      list[idx] = {
+        ...list[idx],
+        ocrStatus: 'done',
+        status: '待确认',
+        pages: parsed.pages,
+        ocrRawText: parsed.rawText,
+        tables: parsed.tables || [],
+        error: null,
+      }
+      return list
+    }
+  })
 }
 
 function parseOCRResult(jsonlText) {
   const lines = jsonlText.trim().split('\n').filter(Boolean)
   const pages = []
   let rawText = ''
+  // 合并所有页 markdown 之后再解析表格，避免 PaddleOCR 把一个 <tr> 拆到多段
+  let combinedMarkdown = ''
 
   for (const line of lines) {
     try {
@@ -246,6 +322,7 @@ function parseOCRResult(jsonlText) {
       for (const res of results) {
         const pageText = res.markdown?.text || ''
         rawText += pageText + '\n'
+        combinedMarkdown += pageText + '\n'
         pages.push({
           pageNumber: pages.length + 1,
           text: pageText,
@@ -257,7 +334,69 @@ function parseOCRResult(jsonlText) {
     }
   }
 
-  return { pages, rawText: rawText.trim() }
+  // 解析 markdown 里的 HTML 表格，产出结构化表格数据
+  const tables = parseHtmlTables(combinedMarkdown)
+
+  return {
+    pages,
+    rawText: rawText.trim(),
+    tables, // [{ rows: [[cell, cell, ...], ...], headers?: [string] }]
+  }
+}
+
+/**
+ * 从 markdown 文本中解析 <table>...</table>。
+ * 兼容 PaddleOCR 偶发的截断/拼接异常：
+ *   - 同一行可能被切到两段 markdown 字符串里（>200.00</td> 这种残尾）
+ *   - 单元格里有 <br> / &nbsp; / 前后空白
+ * 返回：[{ rows: [[cell, cell, ...], ...] }]
+ */
+function parseHtmlTables(markdown) {
+  const tables = []
+  if (!markdown || typeof markdown !== 'string') return tables
+
+  // 先把跨段被切断的 <td> 残尾粘回去：把 ">\d+(\.\d+)?</td>" 形式
+  // 重新规范为 "<td>数字</td>"，避免解析器把同一格当成两段
+  const normalized = markdown
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/>\s*(\d+(?:\.\d+)?)\s*<\/td>/g, '<td>$1</td>')
+    .replace(/>\s*<\/td>/g, '></td>')
+
+  const tableRegex = /<table[^>]*>([\s\S]*?)<\/table>/gi
+  let match
+  while ((match = tableRegex.exec(normalized)) !== null) {
+    const tableHtml = match[1]
+    const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
+    const rows = []
+    let rowMatch
+    while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
+      const rowHtml = rowMatch[1]
+      // 收集 <td> 和 <th>，保留 colspan
+      const cellRegex = /<(td|th)\b[^>]*colspan\s*=\s*["']?(\d+)[^>]*>([\s\S]*?)<\/\1>|<(td|th)\b[^>]*>([\s\S]*?)<\/\4>/gi
+      const cells = []
+      let cellMatch
+      while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
+        const span = cellMatch[2] ? parseInt(cellMatch[2], 10) : 1
+        const raw = (cellMatch[3] ?? cellMatch[5] ?? '').toString()
+        const text = stripHtml(raw).trim()
+        for (let i = 0; i < span; i++) cells.push(text)
+      }
+      if (cells.length > 0) rows.push(cells)
+    }
+    if (rows.length > 0) tables.push({ rows })
+  }
+  return tables
+}
+
+function stripHtml(s) {
+  return s
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
 }
 
 /**
@@ -298,24 +437,33 @@ router.get('/photos/:id', async (req, res) => {
  *   includeInReport / sampleName / entrustNo / matchedRuleId
  */
 router.patch('/photos/:id', async (req, res) => {
-  const list = await readMeta()
-  const idx = list.findIndex(p => p.id === req.params.id)
-  if (idx < 0) return res.status(404).json({ success: false, error: '照片不存在' })
+  try {
+    const result = await withMetaLock(async (list) => {
+      const idx = list.findIndex(p => p.id === req.params.id)
+      if (idx < 0) return null
 
-  const editable = [
-    'testItem', 'subItem', 'recognizedValue', 'standardRequirement',
-    'judgment', 'status', 'includeInReport', 'sampleName', 'entrustNo',
-    'matchedRuleId', 'matchedRuleName',
-  ]
-  const patch = {}
-  for (const k of editable) {
-    if (k in req.body) patch[k] = req.body[k]
+      const editable = [
+        'testItem', 'subItem', 'recognizedValue', 'standardRequirement',
+        'judgment', 'status', 'includeInReport', 'sampleName', 'entrustNo',
+        'matchedRuleId', 'matchedRuleName',
+      ]
+      const patch = {}
+      for (const k of editable) {
+        if (k in req.body) patch[k] = req.body[k]
+      }
+      patch.updatedAt = new Date().toISOString()
+      list[idx] = { ...list[idx], ...patch }
+      return list
+    })
+
+    if (result === null) {
+      return res.status(404).json({ success: false, error: '照片不存在' })
+    }
+    const item = result.find(p => p.id === req.params.id)
+    res.json({ success: true, item })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
   }
-  patch.updatedAt = new Date().toISOString()
-  list[idx] = { ...list[idx], ...patch }
-  await writeMeta(list)
-
-  res.json({ success: true, item: list[idx] })
 })
 
 /**
@@ -323,22 +471,33 @@ router.patch('/photos/:id', async (req, res) => {
  * 删除归档（磁盘 + 元数据）
  */
 router.delete('/photos/:id', async (req, res) => {
-  const list = await readMeta()
-  const idx = list.findIndex(p => p.id === req.params.id)
-  if (idx < 0) return res.status(404).json({ success: false, error: '照片不存在' })
-
-  const item = list[idx]
-  const filePath = path.join(UPLOAD_DIR, item.filename)
   try {
-    await fs.unlink(filePath)
+    let filePath = null
+    const result = await withMetaLock(async (list) => {
+      const idx = list.findIndex(p => p.id === req.params.id)
+      if (idx < 0) return null
+      const item = list[idx]
+      filePath = path.join(UPLOAD_DIR, item.filename)
+      list.splice(idx, 1)
+      return list
+    })
+
+    if (result === null) {
+      return res.status(404).json({ success: false, error: '照片不存在' })
+    }
+
+    if (filePath) {
+      try {
+        await fs.unlink(filePath)
+      } catch (err) {
+        console.warn(`[OCR] 删除文件失败: ${filePath}`, err.message)
+      }
+    }
+
+    res.json({ success: true })
   } catch (err) {
-    console.warn(`[OCR] 删除文件失败: ${filePath}`, err.message)
+    res.status(500).json({ success: false, error: err.message })
   }
-
-  list.splice(idx, 1)
-  await writeMeta(list)
-
-  res.json({ success: true })
 })
 
 /**

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Row, Col, Card, Table, Progress, Statistic } from 'antd'
+import { Row, Col, Card, Table, Progress, Statistic, Tag } from 'antd'
 import ReactECharts from 'echarts-for-react'
 import { supplierStats, sampleCategories, materialStats } from '../../mock/data'
 
@@ -31,7 +31,7 @@ export default function SupplierStats() {
       data: materialStats.map(c => ({
         value: c.avgQualifyRate,
         itemStyle: { 
-          color: c.avgQualifyRate >= 95 ? {
+          color: c.avgQualifyRate == null ? '#d9d9d9' : c.avgQualifyRate >= 95 ? {
             type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [{ offset: 0, color: '#73d13d' }, { offset: 1, color: '#389e0d' }]
           } : c.avgQualifyRate >= 90 ? {
@@ -45,13 +45,20 @@ export default function SupplierStats() {
         },
       })),
       barWidth: 30,
-      label: { show: true, position: 'top', formatter: '{c}%', fontSize: 11, color: '#666' },
+      label: {
+        show: true,
+        position: 'top',
+        formatter: (params: any) => params.value == null ? '缺数据' : `${params.value}%`,
+        fontSize: 11,
+        color: '#666'
+      },
     }],
   }
 
   const supplierColumns = [
     { title: '供应商名称', dataIndex: 'manufacturer', key: 'manufacturer', width: 280, ellipsis: true },
     { title: '送检批次数', dataIndex: 'totalBatches', key: 'totalBatches', align: 'center' as const, sorter: (a: any, b: any) => a.totalBatches - b.totalBatches },
+    { title: '检验批次数', dataIndex: 'inspectedBatches', key: 'inspectedBatches', align: 'center' as const, sorter: (a: any, b: any) => a.inspectedBatches - b.inspectedBatches },
     { title: '合格批次', dataIndex: 'qualifiedBatches', key: 'qualifiedBatches', align: 'center' as const,
       render: (val: number) => <span style={{ color: '#52c41a' }}>{val}</span>,
     },
@@ -64,16 +71,18 @@ export default function SupplierStats() {
       dataIndex: 'qualifyRate',
       key: 'qualifyRate',
       align: 'center' as const,
-      sorter: (a: any, b: any) => a.qualifyRate - b.qualifyRate,
-      render: (val: number) => (
-        <Progress
-          percent={val}
-          size="small"
-          status={val >= 95 ? 'success' : val >= 90 ? 'normal' : 'exception'}
-          format={v => `${v}%`}
-          style={{ width: 120 }}
-        />
-      ),
+      sorter: (a: any, b: any) => (a.qualifyRate ?? -1) - (b.qualifyRate ?? -1),
+      render: (val: number | null) => val == null
+        ? <Tag>缺数据</Tag>
+        : (
+          <Progress
+            percent={val}
+            size="small"
+            status={val >= 95 ? 'success' : val >= 90 ? 'normal' : 'exception'}
+            format={v => `${v}%`}
+            style={{ width: 120 }}
+          />
+        ),
     },
   ]
 
@@ -123,7 +132,7 @@ export default function SupplierStats() {
                   <Statistic title="总送检批次" value={filteredSuppliers.reduce((s, sp) => s + sp.totalBatches, 0)} suffix="批" />
                 </Col>
                 <Col span={6}>
-                  <Statistic title="合格批次" value={filteredSuppliers.reduce((s, sp) => s + sp.qualifiedBatches, 0)} suffix="批" valueStyle={{ color: '#52c41a' }} />
+                  <Statistic title="检验批次数" value={filteredSuppliers.reduce((s, sp) => s + (sp.inspectedBatches || 0), 0)} suffix="批" />
                 </Col>
                 <Col span={6}>
                   <Statistic title="不合格批次" value={filteredSuppliers.reduce((s, sp) => s + sp.unqualifiedBatches, 0)} suffix="批" valueStyle={{ color: '#f5222d' }} />

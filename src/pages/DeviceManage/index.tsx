@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Row, Col, Card, Table, Tag, Statistic, Select, Space, Button, Tooltip, Badge } from 'antd'
-import { ToolOutlined, CheckCircleOutlined, PauseCircleOutlined, WarningOutlined, HistoryOutlined, ExclamationCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
-import ReactECharts from 'echarts-for-react'
-import { devices, Device } from '../../mock/data'
+import { Row, Col, Card, Table, Tag, Statistic, Select, Space, Button, Tooltip, Alert } from 'antd'
+import { ToolOutlined, CheckCircleOutlined, PauseCircleOutlined, WarningOutlined, HistoryOutlined, ExclamationCircleOutlined, ClockCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { devices, Device, currentInstruments, equipmentInstrumentsCurrentCount } from '../../mock/data'
+import DonutPieChart from '../../components/charts/DonutPieChart'
+import BarRankChart from '../../components/charts/BarRankChart'
 
 const { Option } = Select
 
@@ -21,6 +22,12 @@ export default function DeviceManage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [calibFilter, setCalibFilter] = useState<string>('all')
 
+  // 来自 实验室检测设备统计（1.9）.xlsx 真实数据,按 id 建索引
+  const specCategoryMap: Record<string, string> = {}
+  for (const ins of currentInstruments) {
+    if (ins.id && ins.specCategory) specCategoryMap[ins.id] = ins.specCategory
+  }
+
   const mainDevices = devices.filter(d => d.status !== '未到')
   const filteredDevices = mainDevices.filter(d => {
     if (statusFilter !== 'all' && d.status !== statusFilter) return false
@@ -35,82 +42,21 @@ export default function DeviceManage() {
   const calibNormal = mainDevices.filter(d => d.calibrationStatus === '正常').length
   const withTestCount = mainDevices.filter(d => d.totalTests > 0).length
 
-  // 校准状态分布饼图
-  const calibPieOption = {
-    tooltip: { trigger: 'item', backgroundColor: 'rgba(255, 255, 255, 0.9)', borderColor: '#e6f0ff', textStyle: { color: '#333' } },
-    legend: { bottom: 0, icon: 'circle', itemWidth: 10, itemHeight: 10 },
-    series: [{
-      type: 'pie',
-      radius: ['45%', '75%'],
-      avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 3 },
-      label: { show: false },
-      emphasis: {
-        label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#1a1a1a' },
-        itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.15)' }
-      },
-      data: [
-        { value: calibNormal, name: '校准正常', itemStyle: { color: '#52c41a' } },
-        { value: calibSoon, name: '即将到期', itemStyle: { color: '#faad14' } },
-        { value: calibExpired, name: '已过期', itemStyle: { color: '#ff4d4f' } },
-      ].filter(d => d.value > 0),
-    }],
-  }
+  // 校准状态分布饼图数据
+  const calibPieData = [
+    { name: '校准正常', value: calibNormal, color: '#52c41a' },
+    { name: '即将到期', value: calibSoon, color: '#faad14' },
+    { name: '已过期', value: calibExpired, color: '#ff4d4f' },
+  ]
 
-  // 检测次数排行（有检测数据的设备）
+  // 检测次数排行数据
   const topTestDevices = [...mainDevices].filter(d => d.totalTests > 0).sort((a, b) => b.totalTests - a.totalTests).slice(0, 15)
-  const testRankOption = {
-    tooltip: { trigger: 'axis', backgroundColor: 'rgba(255, 255, 255, 0.9)', borderColor: '#e6f0ff', textStyle: { color: '#333' } },
-    grid: { left: '3%', right: '4%', bottom: '3%', top: '10%', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: topTestDevices.map(d => d.name),
-      axisLabel: { rotate: 30, fontSize: 11, color: '#666' },
-      axisLine: { lineStyle: { color: '#e8e8e8' } },
-      axisTick: { show: false },
-    },
-    yAxis: {
-      type: 'value', name: '检测次数',
-      nameTextStyle: { color: '#888', padding: [0, 0, 0, 20] },
-      axisLabel: { color: '#666' },
-      splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } }
-    },
-    series: [{
-      type: 'bar',
-      data: topTestDevices.map(d => ({
-        value: d.totalTests,
-        itemStyle: {
-          color: {
-            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [{ offset: 0, color: '#73d13d' }, { offset: 1, color: '#389e0d' }]
-          },
-          borderRadius: [6, 6, 0, 0]
-        },
-      })),
-      barWidth: 35,
-      label: { show: true, position: 'top', color: '#666', fontWeight: 500 },
-    }],
-  }
+  const testRankData = topTestDevices.map(d => ({ name: d.name, value: d.totalTests }))
 
-  // 存放位置分布
+  // 存放位置分布数据
   const locationMap: Record<string, number> = {}
-  mainDevices.forEach(d => {
-    const loc = d.location || '未标注'
-    locationMap[loc] = (locationMap[loc] || 0) + 1
-  })
-  const locationData = Object.entries(locationMap).sort((a, b) => b[1] - a[1])
-  const locationPieOption = {
-    tooltip: { trigger: 'item', backgroundColor: 'rgba(255, 255, 255, 0.9)', borderColor: '#e6f0ff', textStyle: { color: '#333' } },
-    legend: { bottom: 0, icon: 'circle', itemWidth: 10, itemHeight: 10 },
-    series: [{
-      type: 'pie',
-      radius: ['45%', '75%'],
-      avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 3 },
-      label: { show: false },
-      data: locationData.map(([name, value]) => ({ name, value })),
-    }],
-  }
+  mainDevices.forEach(d => { const loc = d.location || '未标注'; locationMap[loc] = (locationMap[loc] || 0) + 1 })
+  const locationData = Object.entries(locationMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }))
 
   const columns = [
     {
@@ -180,6 +126,18 @@ export default function DeviceManage() {
       render: (val: number) => val > 0 ? val : <span style={{ color: '#ccc' }}>-</span>,
     },
     {
+      title: '规格种类',
+      dataIndex: 'id',
+      key: 'specCategory',
+      width: 220,
+      ellipsis: true,
+      render: (id: string) => {
+        const v = specCategoryMap[id]
+        if (!v) return <span style={{ color: '#ccc' }}>-</span>
+        return <Tooltip title={v}><span>{v}</span></Tooltip>
+      },
+    },
+    {
       title: '操作',
       key: 'action',
       width: 120,
@@ -199,8 +157,28 @@ export default function DeviceManage() {
     <div>
       <div className="page-header">
         <h2>设备管理</h2>
-        <p>实验室检测设备台账管理 — 数据来自《实验室检测设备台账2025》</p>
+        <p>实验室检测设备台账管理 — 数据来自《实验室检测设备台账2025》及《实验室检测设备统计（1.9）》</p>
       </div>
+
+      {/* 数据基准日说明 — 来自真实 Excel,只读不假造 */}
+      {calibExpired > 0 && (
+        <Alert
+          style={{ marginBottom: 16 }}
+          type="warning"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          message="数据基准日说明"
+          description={
+            <span>
+              数据来源 <b>《实验室检测设备统计（1.9）》</b>;
+              今日 {new Date().toISOString().slice(0, 10)},
+              2025 在用设备 <b>{equipmentInstrumentsCurrentCount}</b> 台,
+              其中 <b style={{ color: '#ff4d4f' }}>已过期 {calibExpired} 台</b>。
+              "规格种类"列从该 Excel 抽取,匹配不到显示 "-"。
+            </span>
+          }
+        />
+      )}
 
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
@@ -271,13 +249,13 @@ export default function DeviceManage() {
         <Col span={12}>
           <div className="dashboard-section">
             <h3>校准状态分布</h3>
-            <ReactECharts option={calibPieOption} style={{ height: 320 }} />
+            <DonutPieChart data={calibPieData} height={320} />
           </div>
         </Col>
         <Col span={12}>
           <div className="dashboard-section">
             <h3>存放位置分布</h3>
-            <ReactECharts option={locationPieOption} style={{ height: 320 }} />
+            <DonutPieChart data={locationData} height={320} />
           </div>
         </Col>
       </Row>
@@ -285,7 +263,7 @@ export default function DeviceManage() {
         <Col span={24}>
           <div className="dashboard-section">
             <h3>检测次数排行</h3>
-            <ReactECharts option={testRankOption} style={{ height: 320 }} />
+            <BarRankChart data={testRankData} height={320} yAxisName="检测次数" barWidth={35} />
           </div>
         </Col>
       </Row>
