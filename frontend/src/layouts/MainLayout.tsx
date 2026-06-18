@@ -29,7 +29,7 @@ export default function MainLayout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col bg-[#0f172a] text-white transition-all duration-200",
+          "flex flex-col bg-gradient-to-b from-slate-900 to-slate-950 text-white transition-all duration-300 shadow-xl z-20",
           collapsed ? "w-[68px]" : "w-[220px]"
         )}
       >
@@ -75,7 +75,7 @@ export default function MainLayout() {
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
+        <header className="flex h-16 items-center justify-between border-b border-border/40 bg-white/80 backdrop-blur-md px-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] z-10 sticky top-0">
           <div className="text-base font-semibold text-gray-800">
             {menuItems.find((m) => m.key === location.pathname)?.label || "声屏障检测管理平台"}
           </div>
