@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { devices, type Device } from "@/mock/data";
+import { cn } from "@/lib/utils";
 
 const calibStatusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
   "正常": { color: "default", icon: <CheckCircle className="size-3" /> },
@@ -23,14 +24,26 @@ const calibStatusConfig: Record<string, { color: string; icon: React.ReactNode }
 function StatCard({ title, value, suffix, icon: Icon, variant }: {
   title: string; value: number; suffix: string; icon: React.ElementType; variant: "default" | "destructive" | "secondary" | "outline";
 }) {
+  const variantStyles = {
+    default: "text-primary bg-primary/10",
+    destructive: "text-destructive bg-destructive/10",
+    secondary: "text-amber-500 bg-amber-500/10",
+    outline: "text-muted-foreground bg-muted",
+  };
+  const currentStyle = variantStyles[variant];
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="pt-6">
-        <div className="text-sm text-muted-foreground mb-2">{title}</div>
-        <div className="flex items-center gap-2">
-          <Icon className="size-5" />
-          <span className="text-2xl font-bold">{value}</span>
-          <span className="text-xs text-muted-foreground">{suffix}</span>
+    <Card className="group transition-all duration-300 hover:-translate-y-1">
+      <CardContent className="pt-5 pb-5">
+        <div className="flex justify-between items-start mb-3">
+          <div className="text-sm font-medium text-muted-foreground">{title}</div>
+          <div className={cn("relative flex size-9 items-center justify-center rounded-lg transition-colors group-hover:bg-opacity-80", currentStyle.split(" ")[1])}>
+            <Icon className={cn("size-5 transition-transform group-hover:scale-110", currentStyle.split(" ")[0])} />
+          </div>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold tracking-tight text-foreground">{value}</span>
+          <span className="text-xs font-medium text-muted-foreground">{suffix}</span>
         </div>
       </CardContent>
     </Card>

@@ -17,13 +17,18 @@ function StatCard({ title, value, suffix, icon: Icon, color }: {
   title: string; value: number; suffix: string; icon: React.ElementType; color: string;
 }) {
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="pt-6">
-        <div className="text-sm text-muted-foreground mb-2">{title}</div>
-        <div className="flex items-center gap-2">
-          <Icon className="size-5" style={{ color }} />
-          <span className="text-2xl font-bold">{value}</span>
-          <span className="text-xs text-muted-foreground">{suffix}</span>
+    <Card className="group transition-all duration-300 hover:-translate-y-1">
+      <CardContent className="pt-5 pb-5">
+        <div className="flex justify-between items-start mb-3">
+          <div className="text-sm font-medium text-muted-foreground">{title}</div>
+          <div className="relative flex size-9 items-center justify-center rounded-lg">
+            <div className="absolute inset-0 rounded-lg opacity-10 transition-opacity group-hover:opacity-20" style={{ backgroundColor: color }}></div>
+            <Icon className="size-5 relative z-10 transition-transform group-hover:scale-110" style={{ color }} />
+          </div>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold tracking-tight text-foreground">{value}</span>
+          <span className="text-xs font-medium text-muted-foreground">{suffix}</span>
         </div>
       </CardContent>
     </Card>
