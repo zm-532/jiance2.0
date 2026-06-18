@@ -1,9 +1,0 @@
-node_modules
-dist
-.git
-.env
-*.md
-docs
-# 不排除 uploads - 部署时可能预置归档照片
-# 但通常 docker 部署时 uploads 通过 -v 挂载而不是 COPY 入镜像
-!uploads/.gitkeep

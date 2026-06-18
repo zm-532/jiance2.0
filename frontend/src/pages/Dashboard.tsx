@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Wrench, CheckCircle, FlaskConical, TrendingUp, Users, Shield, Clock, RefreshCw,
+  Wrench, CheckCircle, FlaskConical, TrendingUp, Users, Shield, Clock, RefreshCw, PauseCircle,
 } from "lucide-react";
 import ReactECharts from "echarts-for-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,13 @@ export default function Dashboard() {
   const calibNormal = mainDevices.filter((d) => d.calibrationStatus === "正常").length;
   const calibSoon = mainDevices.filter((d) => d.calibrationStatus === "即将到期").length;
   const calibExpired = mainDevices.filter((d) => d.calibrationStatus === "已过期").length;
+
+  const activeDevices = mainDevices.filter((d) => d.status === "正常").length;
+  const idleDevices = mainDevices.filter((d) => d.status === "闲置").length;
+  const notArrivedDevices = devices.filter((d) => d.status === "未到").length;
+  const devicesWithTests = mainDevices.filter((d) => d.totalTests > 0).length;
+  const noCalibData = mainDevices.filter((d) => d.calibrationStatus === "无校准数据").length;
+  const uniqueLocations = new Set(mainDevices.map((d) => d.location).filter(Boolean)).size;
 
   const devicePieOption = {
     tooltip: { trigger: "item" as const },
@@ -91,6 +98,41 @@ export default function Dashboard() {
 
   const topDevices = [...mainDevices].filter((d) => d.totalTests > 0).sort((a, b) => b.totalTests - a.totalTests).slice(0, 6);
 
+  // Location distribution pie
+  const locMap: Record<string, number> = {};
+  mainDevices.forEach((d) => { const loc = d.location || "未标注"; locMap[loc] = (locMap[loc] || 0) + 1; });
+  const locPieOption = {
+    tooltip: { trigger: "item" as const },
+    legend: { bottom: 0, type: "scroll" as const, icon: "circle", itemWidth: 10, itemHeight: 10 },
+    series: [{
+      type: "pie" as const, radius: ["45%", "75%"], avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 8, borderColor: "#fff", borderWidth: 3 },
+      label: { show: false },
+      emphasis: { label: { show: true, fontSize: 14, fontWeight: "bold" as const } },
+      data: Object.entries(locMap).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value })),
+    }],
+  };
+
+  // Usage TOP10 bar
+  const top10Devices = [...mainDevices].filter((d) => d.totalTests > 0).sort((a, b) => b.totalTests - a.totalTests).slice(0, 10);
+  const top10BarOption = {
+    tooltip: { trigger: "axis" as const },
+    grid: { left: "3%", right: "4%", bottom: "3%", top: "10%", containLabel: true },
+    xAxis: {
+      type: "category" as const, data: top10Devices.map((d) => d.name),
+      axisLabel: { rotate: 30, fontSize: 11 },
+    },
+    yAxis: { type: "value" as const, name: "检测次数", splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
+    series: [{
+      type: "bar" as const, barWidth: 30,
+      data: top10Devices.map((d) => ({
+        value: d.totalTests,
+        itemStyle: { color: { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#4096ff" }, { offset: 1, color: "#0958d9" }] }, borderRadius: [6, 6, 0, 0] },
+      })),
+      label: { show: true, position: "top" as const, fontWeight: 500 },
+    }],
+  };
+
   return (
     <div>
       <div className="mb-6 pb-4 border-b">
@@ -99,13 +141,21 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-6 gap-3 mb-3">
         <StatCard title="委托申请" value={pipeline.totalApplications} suffix="单" icon={FlaskConical} color="#1677ff" />
         <StatCard title="待登记检测" value={pipeline.pendingRegistration} suffix="单" icon={Clock} color="#faad14" />
         <StatCard title="检测中" value={pipeline.inProgress} suffix="单" icon={RefreshCw} color="#13c2c2" />
         <StatCard title="已完成检测" value={pipeline.completed} suffix="单" icon={CheckCircle} color="#52c41a" />
         <StatCard title="设备总数" value={totalDevices} suffix="台" icon={Wrench} color="#722ed1" />
         <StatCard title="送样图片" value={photoCount} suffix="张" icon={TrendingUp} color="#eb2f96" />
+      </div>
+      <div className="grid grid-cols-6 gap-3 mb-6">
+        <StatCard title="使用中设备" value={activeDevices} suffix="台" icon={CheckCircle} color="#52c41a" />
+        <StatCard title="闲置设备" value={idleDevices} suffix="台" icon={Clock} color="#faad14" />
+        <StatCard title="未到设备" value={notArrivedDevices} suffix="台" icon={PauseCircle} color="#999" />
+        <StatCard title="有检测记录" value={devicesWithTests} suffix="台" icon={TrendingUp} color="#1677ff" />
+        <StatCard title="无校准数据" value={noCalibData} suffix="台" icon={Shield} color="#ff4d4f" />
+        <StatCard title="存放位置" value={uniqueLocations} suffix="个" icon={Users} color="#722ed1" />
       </div>
 
       {/* Supplier & Test Distribution */}
@@ -181,6 +231,26 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <ReactECharts option={trendLineOption} style={{ height: 280 }} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Location Distribution & Usage TOP10 */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><Users className="size-4" /> 存放位置分布</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReactECharts option={locPieOption} style={{ height: 300 }} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="size-4" /> 使用频率 TOP10</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReactECharts option={top10BarOption} style={{ height: 300 }} />
           </CardContent>
         </Card>
       </div>

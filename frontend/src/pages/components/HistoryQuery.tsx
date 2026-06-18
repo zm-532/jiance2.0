@@ -1,19 +1,40 @@
-import { useState, useMemo } from "react";
-import { Search, RotateCcw } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Search, RotateCcw, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { experimentRecords, sampleCategories } from "@/mock/data";
 
 export default function HistoryQuery() {
   const [manufacturerFilter, setManufacturerFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchText, setSearchText] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const manufacturers = useMemo(() => [...new Set(experimentRecords.map((r) => r.manufacturer))], []);
+  // Searchable manufacturer dropdown
+  const [mfrOpen, setMfrOpen] = useState(false);
+  const [mfrSearch, setMfrSearch] = useState("");
+  const mfrRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (mfrRef.current && !mfrRef.current.contains(e.target as Node)) setMfrOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const manufacturers = useMemo(() => [...new Set(experimentRecords.map((r) => r.manufacturer))].filter(Boolean), []);
+
+  const filteredMfrs = useMemo(() => {
+    if (!mfrSearch) return manufacturers;
+    return manufacturers.filter((m) => m.toLowerCase().includes(mfrSearch.toLowerCase()));
+  }, [mfrSearch, manufacturers]);
 
   const availableCategories = useMemo(() => {
     if (manufacturerFilter === "all") return sampleCategories;
@@ -30,23 +51,74 @@ export default function HistoryQuery() {
     });
   }, [manufacturerFilter, categoryFilter, searchText]);
 
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [manufacturerFilter, categoryFilter, searchText]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const pagedData = filteredData.slice((page - 1) * pageSize, page * pageSize);
+
   const handleReset = () => { setManufacturerFilter("all"); setCategoryFilter("all"); setSearchText(""); };
+
+  const selectMfr = (val: string) => {
+    setManufacturerFilter(val);
+    setCategoryFilter("all");
+    setMfrOpen(false);
+    setMfrSearch("");
+  };
 
   return (
     <div>
       <Card className="mb-4">
         <CardContent className="pt-6">
           <div className="flex items-end gap-4">
-            <div className="flex-1">
+            {/* Searchable manufacturer dropdown */}
+            <div ref={mfrRef} className="relative flex-1">
               <div className="text-sm text-muted-foreground mb-2">生产厂家</div>
-              <Select value={manufacturerFilter} onValueChange={(v) => { setManufacturerFilter(v); setCategoryFilter("all"); }}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="全部厂家" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部厂家</SelectItem>
-                  {manufacturers.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <button
+                type="button"
+                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+                onClick={() => setMfrOpen(!mfrOpen)}
+              >
+                <span className="truncate">{manufacturerFilter === "all" ? "全部厂家" : manufacturerFilter}</span>
+                <ChevronDown className="size-4 opacity-50 shrink-0 ml-2" />
+              </button>
+              {mfrOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md" style={{ maxWidth: 400 }}>
+                  <div className="sticky top-0 bg-popover border-b p-2">
+                    <Input
+                      placeholder="搜索厂家..."
+                      value={mfrSearch}
+                      onChange={(e) => setMfrSearch(e.target.value)}
+                      className="h-8"
+                      autoFocus
+                    />
+                  </div>
+                  <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                    <button
+                      type="button"
+                      className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer", manufacturerFilter === "all" && "bg-accent font-medium")}
+                      onClick={() => selectMfr("all")}
+                    >
+                      全部厂家
+                    </button>
+                    {filteredMfrs.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer", manufacturerFilter === m && "bg-accent font-medium")}
+                        onClick={() => selectMfr(m)}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                    {filteredMfrs.length === 0 && (
+                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">无匹配厂家</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
             <div className="w-[180px]">
               <div className="text-sm text-muted-foreground mb-2">样品类别</div>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -90,7 +162,7 @@ export default function HistoryQuery() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.slice(0, 10).map((r) => (
+              {pagedData.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.entrustNo}</TableCell>
                   <TableCell>{r.sampleName}</TableCell>
@@ -110,6 +182,30 @@ export default function HistoryQuery() {
               ))}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>每页</span>
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+                <SelectTrigger className="w-[70px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span>条，共 {filteredData.length} 条</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>首页</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>上一页</Button>
+              <span className="px-3 text-sm">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>下一页</Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>末页</Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

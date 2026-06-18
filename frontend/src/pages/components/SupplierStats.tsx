@@ -78,10 +78,9 @@ export default function SupplierStats() {
             <h3 className="font-semibold mb-4">{selectedCategory} - 供应商检测数据明细</h3>
             {filteredSuppliers.length > 0 ? (
               <>
-                <div className="grid grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center"><div className="text-2xl font-bold">{filteredSuppliers.length}</div><div className="text-xs text-muted-foreground">供应商数量</div></div>
                   <div className="text-center"><div className="text-2xl font-bold">{filteredSuppliers.reduce((s, sp) => s + sp.totalBatches, 0)}</div><div className="text-xs text-muted-foreground">总送检批次</div></div>
-                  <div className="text-center"><div className="text-2xl font-bold">{filteredSuppliers.reduce((s, sp) => s + (sp.inspectedBatches || 0), 0)}</div><div className="text-xs text-muted-foreground">检验批次数</div></div>
                   <div className="text-center"><div className="text-2xl font-bold text-red-600">{filteredSuppliers.reduce((s, sp) => s + sp.unqualifiedBatches, 0)}</div><div className="text-xs text-muted-foreground">不合格批次</div></div>
                 </div>
                 <Table>
@@ -89,22 +88,23 @@ export default function SupplierStats() {
                     <TableRow>
                       <TableHead>供应商名称</TableHead>
                       <TableHead className="text-center">送检批次数</TableHead>
-                      <TableHead className="text-center">检验批次数</TableHead>
                       <TableHead className="text-center">合格批次</TableHead>
                       <TableHead className="text-center">不合格批次</TableHead>
-                      <TableHead className="text-center">待定批次</TableHead>
                       <TableHead className="w-[150px]">合格率</TableHead>
+                      <TableHead className="w-[150px]">不合格率</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSuppliers.map((s, idx) => (
+                    {filteredSuppliers.map((s, idx) => {
+                      const unqualifyRate = s.totalBatches > 0
+                        ? +((s.unqualifiedBatches / s.totalBatches) * 100).toFixed(1)
+                        : null;
+                      return (
                       <TableRow key={idx}>
                         <TableCell className="truncate max-w-[280px]">{s.manufacturer}</TableCell>
                         <TableCell className="text-center">{s.totalBatches}</TableCell>
-                        <TableCell className="text-center">{s.inspectedBatches}</TableCell>
                         <TableCell className="text-center text-green-600">{s.qualifiedBatches}</TableCell>
                         <TableCell className="text-center text-red-600">{s.unqualifiedBatches}</TableCell>
-                        <TableCell className="text-center">{s.pendingBatches}</TableCell>
                         <TableCell>
                           {s.qualifyRate == null ? (
                             <span className="text-xs text-muted-foreground">缺数据</span>
@@ -115,8 +115,19 @@ export default function SupplierStats() {
                             </div>
                           )}
                         </TableCell>
+                        <TableCell>
+                          {unqualifyRate == null ? (
+                            <span className="text-xs text-muted-foreground">缺数据</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Progress value={unqualifyRate} className="h-2 flex-1" />
+                              <span className="text-xs w-10 text-right text-red-600">{unqualifyRate}%</span>
+                            </div>
+                          )}
+                        </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </>

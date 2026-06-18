@@ -1,16 +1,27 @@
-import { useState } from "react";
-import { FileText, Eye, Download, Printer } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FileText, Eye, Download, Printer, Camera } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { reportTemplates, experimentRecords, capabilityItems } from "@/mock/data";
+import { listPhotos, getPhotoDownloadUrl, type ArchivedPhoto } from "@/services/ocr";
 
 export default function ReportGenerate() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [previewVisible, setPreviewVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<string>("");
+  const [reportPhotos, setReportPhotos] = useState<ArchivedPhoto[]>([]);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      listPhotos({ include_in_report: true })
+        .then(setReportPhotos)
+        .catch(() => setReportPhotos([]));
+    }
+  }, [selectedTemplate]);
 
   const template = reportTemplates.find((t) => t.id === selectedTemplate);
 
@@ -155,6 +166,55 @@ export default function ReportGenerate() {
         </Card>
       )}
 
+      {/* OCR photo attachments for report */}
+      {selectedTemplate && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Camera className="size-4 text-primary" />
+              <h3 className="font-semibold">OCR 照片附件</h3>
+              <Badge variant="secondary">{reportPhotos.length} 张</Badge>
+              <span className="text-xs text-muted-foreground">在「照片OCR」中勾选「纳入报告」的照片将附在此处</span>
+            </div>
+            {reportPhotos.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {reportPhotos.map((p) => (
+                  <div key={p.id} className="border rounded-lg overflow-hidden">
+                    <div className="aspect-video bg-muted flex items-center justify-center">
+                      <img
+                        src={p.photo_url}
+                        alt={p.original_name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <div className="p-2 text-xs space-y-1">
+                      <div className="truncate font-medium">{p.original_name}</div>
+                      <div className="text-muted-foreground truncate">{p.test_item || "未匹配"} {p.sub_item ? `/ ${p.sub_item}` : ""}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold" style={{
+                          color: p.judgment === "合格" ? "#52c41a" : p.judgment === "不合格" ? "#f5222d" : "#faad14",
+                        }}>{p.recognized_value || "-"}</span>
+                        <Badge variant={p.judgment === "合格" ? "default" : p.judgment === "不合格" ? "destructive" : "secondary"} className="text-[10px]">
+                          {p.judgment}
+                        </Badge>
+                      </div>
+                      <a href={getPhotoDownloadUrl(p.id)} download={p.original_name} className="text-primary hover:underline inline-flex items-center gap-1">
+                        <Download className="size-3" /> 下载原图
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                暂无纳入报告的照片，请前往「照片OCR」页面上传照片并勾选「纳入报告」
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Report preview dialog */}
       <Dialog open={previewVisible} onOpenChange={setPreviewVisible}>
         <DialogContent className="max-w-[800px]">
@@ -187,6 +247,25 @@ export default function ReportGenerate() {
                 <div><span className="text-muted-foreground">检测日期：</span>{record.date}</div>
                 <div><span className="text-muted-foreground">所属项目：</span>{record.project}</div>
               </div>
+              {reportPhotos.length > 0 && (
+                <div className="mt-4 border rounded-lg p-4 bg-white">
+                  <h4 className="font-semibold text-sm mb-2">附件：OCR 检测照片 ({reportPhotos.length} 张)</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {reportPhotos.map((p) => (
+                      <div key={p.id} className="text-xs border rounded p-1.5">
+                        <div className="aspect-video bg-muted rounded mb-1 overflow-hidden">
+                          <img src={p.photo_url} alt={p.original_name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        </div>
+                        <div className="truncate">{p.test_item || p.original_name}</div>
+                        <div className="flex justify-between">
+                          <span>{p.recognized_value || "-"}</span>
+                          <Badge variant={p.judgment === "合格" ? "default" : p.judgment === "不合格" ? "destructive" : "secondary"} className="text-[10px]">{p.judgment}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="text-center text-xs text-muted-foreground mt-4">
                 此报告由系统自动生成 | 宜塔报告模板 {template?.version}
                 <br />
@@ -195,8 +274,18 @@ export default function ReportGenerate() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" disabled><Printer className="size-4 mr-1" /> 打印</Button>
-            <Button disabled><Download className="size-4 mr-1" /> 导出Word（缺数据）</Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span><Button variant="outline" disabled><Printer className="size-4 mr-1" /> 打印</Button></span>
+              </TooltipTrigger>
+              <TooltipContent>打印功能暂未开放</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span><Button disabled><Download className="size-4 mr-1" /> 导出Word（缺数据）</Button></span>
+              </TooltipTrigger>
+              <TooltipContent>缺少 Word 模板字段映射和后端导出服务</TooltipContent>
+            </Tooltip>
             <Button variant="secondary" onClick={() => setPreviewVisible(false)}>关闭</Button>
           </DialogFooter>
         </DialogContent>

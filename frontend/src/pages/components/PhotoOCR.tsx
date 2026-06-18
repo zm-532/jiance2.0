@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
-  Upload, Eye, Trash2, Camera, CheckCircle, Edit, RefreshCw, X,
+  Upload, Eye, Trash2, CheckCircle, Edit, RefreshCw, Download,
+  Search, CheckSquare, Square, X, FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,166 +13,228 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ocrRules, type OCRRule } from "@/mock/data";
-import { recognizeImage, judgeResult, type OCRJobResult } from "@/services/ocr";
+import {
+  recognizeImage, listPhotos, updatePhotoMeta, deletePhoto, deletePhotosBatch,
+  getPhotoDownloadUrl, judgeResult,
+  type ArchivedPhoto, type PhotoUpdate,
+} from "@/services/ocr";
 
-interface OCRResultItem {
+type UploadingItem = {
   id: string;
   fileName: string;
-  file: File;
-  ocrRawText: string;
-  matchedRule: OCRRule | null;
-  testItem: string;
-  subItem: string;
-  recognizedValue: string;
-  standardRequirement: string;
-  judgment: "合格" | "不合格" | "待判定";
-  status: "已识别" | "待确认" | "识别失败" | "识别中";
-  includeInReport: boolean;
   progress: number;
+  status: "上传中" | "识别中" | "完成" | "失败";
   error?: string;
-}
+};
 
 export default function PhotoOCR() {
-  const [results, setResults] = useState<OCRResultItem[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [previewVisible, setPreviewVisible] = useState(false);
-  const [previewItem, setPreviewItem] = useState<OCRResultItem | null>(null);
+  // Archived photos from backend
+  const [photos, setPhotos] = useState<ArchivedPhoto[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const matchRule = useCallback((rawText: string, fileName: string): OCRRule | null => {
-    const text = rawText.toLowerCase();
-    const fn = fileName.toLowerCase();
-    for (const rule of ocrRules) {
-      if (!rule.hasImage) continue;
-      const item = rule.testItem.toLowerCase();
-      const sub = rule.subItem.toLowerCase();
-      if (fn.includes(item.substring(0, 4)) || (sub && fn.includes(sub.substring(0, 3)))) return rule;
+  // Upload tracking
+  const [uploading, setUploading] = useState<UploadingItem[]>([]);
+
+  // Filters
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [judgmentFilter, setJudgmentFilter] = useState<string>("all");
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Inline editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editField, setEditField] = useState<"sample_name" | "entrust_no" | "recognized_value">("sample_name");
+  const [editValue, setEditValue] = useState("");
+
+  // Detail dialog
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewItem, setPreviewItem] = useState<ArchivedPhoto | null>(null);
+
+  // Load photos from backend
+  const fetchPhotos = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await listPhotos();
+      setPhotos(data);
+    } catch {
+      toast.error("加载照片列表失败");
+    } finally {
+      setLoading(false);
     }
-    for (const rule of ocrRules) {
-      if (!rule.hasImage) continue;
-      const req = rule.standardRequirement.replace(/[≥≤<>]/g, "").toLowerCase();
-      if (req && text.includes(req)) return rule;
-    }
-    return null;
   }, []);
 
-  const extractValuesFromText = (text: string, rule: OCRRule): string[] => {
-    const values: string[] = [];
-    const numberPattern = /[-+]?\d+\.?\d*/g;
-    if (rule.recognitionContent) {
-      const allNumbers: string[] = [];
-      for (const line of text.split("\n")) {
-        const matches = line.match(numberPattern);
-        if (matches) allNumbers.push(...matches);
-      }
-      if (rule.preConditions) {
-        const condNumbers = rule.preConditions.match(/\d+#?/g);
-        if (condNumbers && condNumbers.length > 0) return allNumbers.slice(0, condNumbers.length);
-      }
-      return allNumbers.slice(0, 5);
-    }
-    const matches = text.match(numberPattern);
-    if (matches) values.push(...matches.slice(0, 5));
-    return values;
-  };
+  useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
 
+  // Upload handler
   const handleUpload = useCallback(async (file: File) => {
-    const id = `ocr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const preMatchedRule = ocrRules.find((r) => {
-      if (!r.hasImage) return false;
-      return file.name.toLowerCase().includes(r.testItem.toLowerCase().substring(0, 4));
+    const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const item: UploadingItem = { id: uploadId, fileName: file.name, progress: 0, status: "上传中" };
+    setUploading((prev) => [item, ...prev]);
+
+    const result = await recognizeImage(file, (status, progress) => {
+      setUploading((prev) =>
+        prev.map((u) => u.id === uploadId ? { ...u, progress: progress || 0, status: progress && progress >= 100 ? "完成" : "识别中" } : u)
+      );
     });
 
-    const newItem: OCRResultItem = {
-      id, fileName: file.name, file, ocrRawText: "", matchedRule: preMatchedRule || null,
-      testItem: preMatchedRule?.testItem || "待识别", subItem: preMatchedRule?.subItem || "",
-      recognizedValue: "", standardRequirement: preMatchedRule?.standardRequirement || "",
-      judgment: "待判定", status: "识别中", includeInReport: false, progress: 0,
-    };
+    if (result.success) {
+      setUploading((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: 100, status: "完成" } : u));
+      toast.success(`${file.name} 识别完成`);
+      fetchPhotos();
+    } else {
+      setUploading((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: 100, status: "失败", error: result.error } : u));
+      toast.error(`${file.name} 识别失败: ${result.error}`);
+    }
+  }, [fetchPhotos]);
 
-    setResults((prev) => [newItem, ...prev]);
+  // Clear completed uploads
+  const clearUploads = () => {
+    setUploading((prev) => prev.filter((u) => u.status !== "完成" && u.status !== "失败"));
+  };
 
-    const ocrResult = await recognizeImage(file, (_status, progress) => {
-      setResults((prev) => prev.map((r) => r.id === id ? { ...r, progress: progress || 0 } : r));
+  // Filtering
+  const filteredPhotos = photos.filter((p) => {
+    if (searchText) {
+      const s = searchText.toLowerCase();
+      if (
+        !p.original_name.toLowerCase().includes(s) &&
+        !(p.sample_name || "").toLowerCase().includes(s) &&
+        !(p.entrust_no || "").toLowerCase().includes(s) &&
+        !(p.test_item || "").toLowerCase().includes(s)
+      ) return false;
+    }
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    if (judgmentFilter !== "all" && p.judgment !== judgmentFilter) return false;
+    return true;
+  });
+
+  // Selection
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
     });
-
-    if (!ocrResult.success) {
-      setResults((prev) => prev.map((r) => r.id === id ? { ...r, status: "识别失败" as const, error: ocrResult.error, progress: 100 } : r));
-      return;
-    }
-
-    const rawText = ocrResult.rawText;
-    const matchedRule = matchRule(rawText, file.name) || preMatchedRule || null;
-    let recognizedValue = "";
-    let status: OCRResultItem["status"] = "待确认";
-
-    if (matchedRule) {
-      const values = extractValuesFromText(rawText, matchedRule);
-      if (values.length > 0) {
-        if (matchedRule.calculationMethod === "average" && values.length > 1) {
-          const nums = values.map(Number).filter((n) => !isNaN(n));
-          if (nums.length > 0) { recognizedValue = (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1); status = "已识别"; }
-        } else { recognizedValue = values[0]; status = "已识别"; }
-      }
-    }
-
-    if (matchedRule?.ruleType === "qualitative" || matchedRule?.ruleType === "process") {
-      if (rawText.includes("无裂纹") || rawText.includes("不裂")) { recognizedValue = "无裂纹"; status = "已识别"; }
-      else if (rawText.includes("有裂纹") || rawText.includes("裂")) { recognizedValue = "有裂纹"; status = "已识别"; }
-    }
-
-    const judgment = matchedRule ? judgeResult(recognizedValue, matchedRule.standardRequirement) : "待判定";
-
-    setResults((prev) => prev.map((r) => {
-      if (r.id !== id) return r;
-      return { ...r, ocrRawText: rawText, matchedRule, testItem: matchedRule?.testItem || "未匹配",
-        subItem: matchedRule?.subItem || "", recognizedValue: recognizedValue || "未识别到数值",
-        standardRequirement: matchedRule?.standardRequirement || "", judgment,
-        status: recognizedValue ? status : "待确认", progress: 100 } as OCRResultItem;
-    }));
-
-    toast.success(`${file.name} 识别完成`);
-  }, [matchRule]);
-
-  const handleConfirm = (id: string) => {
-    setResults((prev) => prev.map((r) => {
-      if (r.id !== id) return r;
-      const judgment = r.matchedRule ? judgeResult(r.recognizedValue, r.matchedRule.standardRequirement) : "待判定";
-      return { ...r, status: "已识别", judgment, includeInReport: true };
-    }));
-    toast.success("已确认");
   };
 
-  const handleEdit = (id: string) => {
-    const item = results.find((r) => r.id === id);
-    if (item) { setEditingId(id); setEditValue(item.recognizedValue); }
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredPhotos.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredPhotos.map((p) => p.id)));
+    }
   };
 
-  const handleSaveEdit = () => {
+  // Inline edit
+  const startEdit = (photo: ArchivedPhoto, field: "sample_name" | "entrust_no" | "recognized_value") => {
+    setEditingId(photo.id);
+    setEditField(field);
+    setEditValue((photo as any)[field] || "");
+  };
+
+  const saveEdit = async () => {
     if (!editingId) return;
-    setResults((prev) => prev.map((r) => {
-      if (r.id !== editingId) return r;
-      const judgment = r.matchedRule ? judgeResult(editValue, r.matchedRule.standardRequirement) : "待判定";
-      return { ...r, recognizedValue: editValue, judgment, status: "已识别" };
-    }));
-    setEditingId(null); setEditValue("");
-    toast.success("已保存");
+    const patch: PhotoUpdate = { [editField]: editValue || null };
+    try {
+      await updatePhotoMeta(editingId, patch);
+      toast.success("已保存");
+      fetchPhotos();
+    } catch {
+      toast.error("保存失败");
+    }
+    setEditingId(null);
+    setEditValue("");
   };
 
-  const handleDelete = (id: string) => {
-    setResults((prev) => prev.filter((r) => r.id !== id));
+  // Toggle include in report
+  const toggleInclude = async (photo: ArchivedPhoto) => {
+    try {
+      await updatePhotoMeta(photo.id, { include_in_report: !photo.include_in_report });
+      fetchPhotos();
+    } catch {
+      toast.error("操作失败");
+    }
   };
 
-  const handleRetry = (item: OCRResultItem) => {
-    handleDelete(item.id);
-    handleUpload(item.file);
+  // Confirm (set status to 已识别)
+  const handleConfirm = async (photo: ArchivedPhoto) => {
+    const judgment = photo.standard_requirement
+      ? judgeResult(photo.recognized_value || "", photo.standard_requirement)
+      : "待判定";
+    try {
+      await updatePhotoMeta(photo.id, { status: "已识别", judgment, include_in_report: true });
+      toast.success("已确认");
+      fetchPhotos();
+    } catch {
+      toast.error("操作失败");
+    }
   };
 
-  const totalItems = results.length;
-  const recognizedItems = results.filter((r) => r.status === "已识别").length;
-  const pendingItems = results.filter((r) => r.status === "待确认").length;
-  const failedItems = results.filter((r) => r.status === "识别失败").length;
+  // Delete single
+  const handleDelete = async (id: string) => {
+    try {
+      await deletePhoto(id);
+      setSelectedIds((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      toast.success("已删除");
+      fetchPhotos();
+    } catch {
+      toast.error("删除失败");
+    }
+  };
+
+  // Batch delete
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定删除选中的 ${selectedIds.size} 张照片？`)) return;
+    try {
+      const res = await deletePhotosBatch(Array.from(selectedIds));
+      toast.success(`成功删除 ${res.success} 张${res.failed > 0 ? `，${res.failed} 张失败` : ""}`);
+      setSelectedIds(new Set());
+      fetchPhotos();
+    } catch {
+      toast.error("批量删除失败");
+    }
+  };
+
+  // Batch include in report
+  const handleBatchInclude = async (include: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      await Promise.all(ids.map((id) => updatePhotoMeta(id, { include_in_report: include })));
+      toast.success(`已${include ? "纳入" : "移出"}报告`);
+      setSelectedIds(new Set());
+      fetchPhotos();
+    } catch {
+      toast.error("批量操作失败");
+    }
+  };
+
+  // Retry
+  const handleRetry = async (photo: ArchivedPhoto) => {
+    // Re-upload the original file — need to fetch it first
+    try {
+      const res = await fetch(getPhotoDownloadUrl(photo.id));
+      if (!res.ok) throw new Error("下载失败");
+      const blob = await res.blob();
+      const file = new File([blob], photo.original_name, { type: photo.mimetype });
+      await handleDelete(photo.id);
+      handleUpload(file);
+    } catch {
+      toast.error("重试失败");
+    }
+  };
+
+  // Stats
+  const stats = {
+    total: photos.length,
+    recognized: photos.filter((p) => p.status === "已识别").length,
+    pending: photos.filter((p) => p.status === "待确认").length,
+    failed: photos.filter((p) => p.status === "识别失败").length,
+    inReport: photos.filter((p) => p.include_in_report).length,
+  };
 
   return (
     <div>
@@ -191,14 +254,40 @@ export default function PhotoOCR() {
         </CardContent>
       </Card>
 
-      {/* Stats */}
-      {totalItems > 0 && (
-        <div className="grid grid-cols-4 gap-3 mb-6">
+      {/* Uploading progress */}
+      {uploading.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">上传进度</h3>
+              <Button variant="ghost" size="sm" onClick={clearUploads} className="text-xs">
+                <X className="size-3 mr-1" /> 清除已完成
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {uploading.map((u) => (
+                <div key={u.id} className="flex items-center gap-3 text-sm">
+                  <span className="truncate w-[200px]">{u.fileName}</span>
+                  <Progress value={u.progress} className="flex-1 h-2" />
+                  <Badge variant={u.status === "完成" ? "default" : u.status === "失败" ? "destructive" : "secondary"} className="w-[60px] justify-center">
+                    {u.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats cards */}
+      {stats.total > 0 && (
+        <div className="grid grid-cols-5 gap-3 mb-6">
           {[
-            { label: "总识别数", value: totalItems, color: "#1677ff" },
-            { label: "已识别", value: recognizedItems, color: "#52c41a" },
-            { label: "待确认", value: pendingItems, color: "#faad14" },
-            { label: "识别失败", value: failedItems, color: "#f5222d" },
+            { label: "总数", value: stats.total, color: "#1677ff" },
+            { label: "已识别", value: stats.recognized, color: "#52c41a" },
+            { label: "待确认", value: stats.pending, color: "#faad14" },
+            { label: "识别失败", value: stats.failed, color: "#f5222d" },
+            { label: "纳入报告", value: stats.inReport, color: "#722ed1" },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="pt-4 text-center">
@@ -210,83 +299,189 @@ export default function PhotoOCR() {
         </div>
       )}
 
+      {/* Filters + Batch actions */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜索文件名/样品/委托编号..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="pl-8 w-[280px] h-9"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[120px] h-9"><SelectValue placeholder="状态" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部状态</SelectItem>
+                  <SelectItem value="已识别">已识别</SelectItem>
+                  <SelectItem value="待确认">待确认</SelectItem>
+                  <SelectItem value="识别中">识别中</SelectItem>
+                  <SelectItem value="识别失败">识别失败</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={judgmentFilter} onValueChange={setJudgmentFilter}>
+                <SelectTrigger className="w-[120px] h-9"><SelectValue placeholder="判定" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部判定</SelectItem>
+                  <SelectItem value="合格">合格</SelectItem>
+                  <SelectItem value="不合格">不合格</SelectItem>
+                  <SelectItem value="待判定">待判定</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={fetchPhotos} disabled={loading}>
+                <RefreshCw className={`size-3.5 mr-1 ${loading ? "animate-spin" : ""}`} /> 刷新
+              </Button>
+            </div>
+
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">已选 {selectedIds.size} 项</span>
+                <Button variant="outline" size="sm" onClick={() => handleBatchInclude(true)}>
+                  <FileDown className="size-3 mr-1" /> 纳入报告
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleBatchInclude(false)}>
+                  移出报告
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
+                  <Trash2 className="size-3 mr-1" /> 批量删除
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Results table */}
       <Card>
         <CardContent className="pt-6">
           <h3 className="font-semibold mb-4">OCR识别结果</h3>
-          {results.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">暂无识别结果，请上传试验数据照片</div>
+          {filteredPhotos.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {photos.length === 0 ? "暂无识别结果，请上传试验数据照片" : "没有匹配的记录"}
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[180px]">文件名</TableHead>
-                  <TableHead className="w-[160px]">检测项目</TableHead>
+                  <TableHead className="w-[40px]">
+                    <button onClick={toggleSelectAll} className="p-1">
+                      {selectedIds.size === filteredPhotos.length && filteredPhotos.length > 0
+                        ? <CheckSquare className="size-4" />
+                        : <Square className="size-4 text-muted-foreground" />}
+                    </button>
+                  </TableHead>
+                  <TableHead className="w-[160px]">文件名</TableHead>
+                  <TableHead className="w-[120px]">样品名称</TableHead>
+                  <TableHead className="w-[120px]">委托编号</TableHead>
+                  <TableHead className="w-[140px]">检测项目</TableHead>
                   <TableHead className="w-[100px]">标准要求</TableHead>
-                  <TableHead className="w-[140px]">识别结果</TableHead>
-                  <TableHead className="w-[80px] text-center">判定</TableHead>
-                  <TableHead className="w-[90px] text-center">状态</TableHead>
-                  <TableHead className="w-[80px] text-center">纳入报告</TableHead>
+                  <TableHead className="w-[120px]">识别结果</TableHead>
+                  <TableHead className="w-[70px] text-center">判定</TableHead>
+                  <TableHead className="w-[80px] text-center">状态</TableHead>
+                  <TableHead className="w-[70px] text-center">报告</TableHead>
                   <TableHead>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="truncate max-w-[180px]">{r.fileName}</TableCell>
+                {filteredPhotos.map((p) => (
+                  <TableRow key={p.id} className={selectedIds.has(p.id) ? "bg-muted/50" : ""}>
                     <TableCell>
-                      <div className="font-medium text-sm">{r.testItem}</div>
-                      {r.subItem && <div className="text-xs text-muted-foreground">{r.subItem}</div>}
+                      <button onClick={() => toggleSelect(p.id)} className="p-1">
+                        {selectedIds.has(p.id)
+                          ? <CheckSquare className="size-4 text-primary" />
+                          : <Square className="size-4 text-muted-foreground" />}
+                      </button>
                     </TableCell>
-                    <TableCell className="text-center text-sm">{r.standardRequirement || "-"}</TableCell>
+                    <TableCell className="truncate max-w-[160px] text-sm">{p.original_name}</TableCell>
                     <TableCell>
-                      {r.status === "识别中" ? (
-                        <Progress value={r.progress} className="h-2" />
-                      ) : editingId === r.id ? (
+                      {editingId === p.id && editField === "sample_name" ? (
                         <div className="flex items-center gap-1">
-                          <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} className="h-7 w-20 text-xs" />
-                          <Button variant="link" size="sm" onClick={handleSaveEdit} className="h-7 px-1 text-xs">保存</Button>
+                          <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} className="h-7 w-24 text-xs" />
+                          <Button variant="link" size="sm" onClick={saveEdit} className="h-7 px-1 text-xs">保存</Button>
                         </div>
                       ) : (
-                        <span className="font-semibold text-sm" style={{
-                          color: r.status === "已识别" ? "#52c41a" : r.status === "待确认" ? "#faad14" : "#f5222d",
-                        }}>{r.recognizedValue || "-"}</span>
+                        <span className="text-sm cursor-pointer hover:text-primary" onDoubleClick={() => startEdit(p, "sample_name")}>
+                          {p.sample_name || <span className="text-muted-foreground">-</span>}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {editingId === p.id && editField === "entrust_no" ? (
+                        <div className="flex items-center gap-1">
+                          <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} className="h-7 w-24 text-xs" />
+                          <Button variant="link" size="sm" onClick={saveEdit} className="h-7 px-1 text-xs">保存</Button>
+                        </div>
+                      ) : (
+                        <span className="text-sm cursor-pointer hover:text-primary" onDoubleClick={() => startEdit(p, "entrust_no")}>
+                          {p.entrust_no || <span className="text-muted-foreground">-</span>}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{p.test_item || "-"}</div>
+                      {p.sub_item && <div className="text-xs text-muted-foreground">{p.sub_item}</div>}
+                    </TableCell>
+                    <TableCell className="text-sm text-center">{p.standard_requirement || "-"}</TableCell>
+                    <TableCell>
+                      {editingId === p.id && editField === "recognized_value" ? (
+                        <div className="flex items-center gap-1">
+                          <Input value={editValue} onChange={(e) => setEditValue(e.target.value)} className="h-7 w-20 text-xs" />
+                          <Button variant="link" size="sm" onClick={saveEdit} className="h-7 px-1 text-xs">保存</Button>
+                        </div>
+                      ) : (
+                        <span
+                          className="font-semibold text-sm cursor-pointer hover:underline"
+                          style={{
+                            color: p.status === "已识别" ? "#52c41a" : p.status === "待确认" ? "#faad14" : "#f5222d",
+                          }}
+                          onDoubleClick={() => startEdit(p, "recognized_value")}
+                        >
+                          {p.recognized_value || "-"}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant={r.judgment === "合格" ? "default" : r.judgment === "不合格" ? "destructive" : "secondary"}>
-                        {r.judgment}
+                      <Badge variant={p.judgment === "合格" ? "default" : p.judgment === "不合格" ? "destructive" : "secondary"}>
+                        {p.judgment}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge variant={r.status === "已识别" ? "default" : r.status === "待确认" ? "secondary" : r.status === "识别中" ? "outline" : "destructive"}>
-                        {r.status}
+                      <Badge variant={p.status === "已识别" ? "default" : p.status === "待确认" ? "secondary" : p.status === "识别中" ? "outline" : "destructive"}>
+                        {p.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch
-                        checked={r.includeInReport}
-                        onCheckedChange={(checked) => setResults((prev) => prev.map((x) => x.id === r.id ? { ...x, includeInReport: checked } : x))}
-                        disabled={r.status === "识别失败" || r.status === "识别中"}
+                        checked={p.include_in_report}
+                        onCheckedChange={() => toggleInclude(p)}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {r.status === "待确认" && (
-                          <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => handleConfirm(r.id)}>
+                        {p.status === "待确认" && (
+                          <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => handleConfirm(p)}>
                             <CheckCircle className="size-3" /> 确认
                           </Button>
                         )}
-                        <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => handleEdit(r.id)}>
+                        <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => startEdit(p, "recognized_value")}>
                           <Edit className="size-3" /> 编辑
                         </Button>
-                        <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => { setPreviewItem(r); setPreviewVisible(true); }}>
+                        <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => { setPreviewItem(p); setPreviewVisible(true); }}>
                           <Eye className="size-3" /> 详情
                         </Button>
-                        <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => handleRetry(r)}>
+                        <Button variant="link" size="sm" className="h-7 px-1 text-xs" onClick={() => handleRetry(p)}>
                           <RefreshCw className="size-3" /> 重试
                         </Button>
-                        <Button variant="link" size="sm" className="h-7 px-1 text-xs text-destructive" onClick={() => handleDelete(r.id)}>
+                        <a href={getPhotoDownloadUrl(p.id)} download={p.original_name}>
+                          <Button variant="link" size="sm" className="h-7 px-1 text-xs">
+                            <Download className="size-3" /> 下载
+                          </Button>
+                        </a>
+                        <Button variant="link" size="sm" className="h-7 px-1 text-xs text-destructive" onClick={() => handleDelete(p.id)}>
                           <Trash2 className="size-3" /> 删除
                         </Button>
                       </div>
@@ -308,14 +503,16 @@ export default function PhotoOCR() {
           {previewItem && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-muted-foreground">文件名：</span>{previewItem.fileName}</div>
-                <div><span className="text-muted-foreground">检测项目：</span>{previewItem.testItem}</div>
-                <div><span className="text-muted-foreground">标准要求：</span>{previewItem.standardRequirement || "-"}</div>
+                <div><span className="text-muted-foreground">文件名：</span>{previewItem.original_name}</div>
+                <div><span className="text-muted-foreground">样品名称：</span>{previewItem.sample_name || "-"}</div>
+                <div><span className="text-muted-foreground">委托编号：</span>{previewItem.entrust_no || "-"}</div>
+                <div><span className="text-muted-foreground">检测项目：</span>{previewItem.test_item || "-"}</div>
+                <div><span className="text-muted-foreground">标准要求：</span>{previewItem.standard_requirement || "-"}</div>
                 <div>
                   <span className="text-muted-foreground">识别结果：</span>
                   <span className="font-semibold" style={{
                     color: previewItem.judgment === "合格" ? "#52c41a" : previewItem.judgment === "不合格" ? "#f5222d" : "#faad14",
-                  }}>{previewItem.recognizedValue}</span>
+                  }}>{previewItem.recognized_value || "-"}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">判定结果：</span>
@@ -323,20 +520,46 @@ export default function PhotoOCR() {
                     {previewItem.judgment}
                   </Badge>
                 </div>
+                <div><span className="text-muted-foreground">上传时间：</span>{new Date(previewItem.uploaded_at).toLocaleString()}</div>
               </div>
-              {previewItem.matchedRule && (
-                <div className="grid grid-cols-2 gap-2 text-sm border-t pt-3">
-                  <div><span className="text-muted-foreground">检测设备：</span>{previewItem.matchedRule.equipment}</div>
-                  <div><span className="text-muted-foreground">样品名称：</span>{previewItem.matchedRule.sampleName}</div>
-                  <div className="col-span-2"><span className="text-muted-foreground">判定标准：</span>{previewItem.matchedRule.judgmentStandard}</div>
-                  <div className="col-span-2"><span className="text-muted-foreground">检测标准：</span>{previewItem.matchedRule.testStandard}</div>
+
+              {/* OCR tables */}
+              {previewItem.tables && previewItem.tables.length > 0 && (
+                <div className="border-t pt-3">
+                  <h4 className="font-semibold text-sm mb-2">识别到的表格数据</h4>
+                  {previewItem.tables.map((table, ti) => (
+                    <div key={ti} className="mb-3 overflow-auto">
+                      <table className="w-full border-collapse text-xs">
+                        <tbody>
+                          {table.rows.map((row, ri) => (
+                            <tr key={ri} className={ri === 0 ? "bg-muted font-semibold" : ""}>
+                              {row.map((cell, ci) => (
+                                <td key={ci} className="border px-2 py-1">{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
                 </div>
               )}
+
+              {/* Raw OCR text */}
               <div className="border-t pt-3">
-                <h4 className="font-semibold text-sm mb-2">OCR 识别内容</h4>
-                <div className="bg-muted p-3 rounded-md max-h-[400px] overflow-auto text-xs whitespace-pre-wrap">
-                  {previewItem.ocrRawText || "无识别文本"}
+                <h4 className="font-semibold text-sm mb-2">OCR 原始文本</h4>
+                <div className="bg-muted p-3 rounded-md max-h-[300px] overflow-auto text-xs whitespace-pre-wrap">
+                  {previewItem.ocr_raw_text || "无识别文本"}
                 </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2 border-t pt-3">
+                <a href={getPhotoDownloadUrl(previewItem.id)} download={previewItem.original_name}>
+                  <Button variant="outline" size="sm">
+                    <Download className="size-3.5 mr-1" /> 下载原图
+                  </Button>
+                </a>
               </div>
             </div>
           )}

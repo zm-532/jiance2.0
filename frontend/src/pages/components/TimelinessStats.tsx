@@ -51,7 +51,7 @@ export default function TimelinessStats() {
   return (
     <div>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-blue-800">
-        <strong>时效性说明：</strong>当前只对具备收样/检测日期且不涉及老化扣除规则的记录计算工作日时效；周六/周日已剔除，当天收样当天完成计为0.5天。法定节假日表和老化时长规则缺失时显示“缺数据”。
+        <strong>时效性说明：</strong>当前只对具备收样/检测日期且不涉及老化扣除规则的记录计算工作日时效；周六/周日已剔除，当天收样当天完成计为1天。法定节假日表和老化时长规则缺失时显示”缺数据”。
       </div>
 
       <div className="grid grid-cols-5 gap-4 mb-6">

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Wrench, CheckCircle, PauseCircle, AlertTriangle, History, XCircle, Clock,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from "lucide-react";
 import ReactECharts from "echarts-for-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,9 +37,16 @@ function StatCard({ title, value, suffix, icon: Icon, variant }: {
   );
 }
 
+type SortKey = "nextCalibrationDate" | "totalTests" | null;
+type SortDir = "asc" | "desc";
+
 export default function DeviceManage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [calibFilter, setCalibFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const mainDevices = devices.filter((d) => d.status !== "未到");
   const filteredDevices = mainDevices.filter((d) => {
@@ -46,6 +54,47 @@ export default function DeviceManage() {
     if (calibFilter !== "all" && d.calibrationStatus !== calibFilter) return false;
     return true;
   });
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [statusFilter, calibFilter]);
+
+  // Sort devices
+  const sortedDevices = useMemo(() => {
+    if (!sortKey) return filteredDevices;
+    return [...filteredDevices].sort((a, b) => {
+      let va: any, vb: any;
+      if (sortKey === "nextCalibrationDate") {
+        va = a.nextCalibrationDate || "9999";
+        vb = b.nextCalibrationDate || "9999";
+      } else if (sortKey === "totalTests") {
+        va = a.totalTests;
+        vb = b.totalTests;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredDevices, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+    if (sortKey !== columnKey) return <ArrowUpDown className="size-3.5 ml-1 inline opacity-40" />;
+    return sortDir === "asc"
+      ? <ArrowUp className="size-3.5 ml-1 inline text-primary" />
+      : <ArrowDown className="size-3.5 ml-1 inline text-primary" />;
+  };
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(sortedDevices.length / pageSize));
+  const pagedDevices = sortedDevices.slice((page - 1) * pageSize, page * pageSize);
 
   const totalDevices = mainDevices.length;
   const normalDevices = mainDevices.filter((d) => d.status === "正常").length;
@@ -160,28 +209,39 @@ export default function DeviceManage() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[1800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[85px]">设备编号</TableHead>
                   <TableHead className="w-[170px]">设备名称</TableHead>
                   <TableHead className="w-[130px]">型号</TableHead>
                   <TableHead className="w-[180px]">生产厂家</TableHead>
+                  <TableHead className="w-[150px]">功能</TableHead>
+                  <TableHead className="w-[120px]">测量范围</TableHead>
                   <TableHead className="w-[90px] text-center">设备状态</TableHead>
                   <TableHead className="w-[100px] text-center">校准状态</TableHead>
+                  <TableHead className="w-[120px]">校准单位</TableHead>
+                  <TableHead className="w-[140px]">证书编号</TableHead>
                   <TableHead className="w-[110px]">存放位置</TableHead>
-                  <TableHead className="w-[110px]">下次校准</TableHead>
-                  <TableHead className="w-[90px] text-center">检测次数</TableHead>
+                  <TableHead className="w-[100px]">联系人</TableHead>
+                  <TableHead className="w-[110px] cursor-pointer hover:text-primary" onClick={() => toggleSort("nextCalibrationDate")}>
+                    下次校准 <SortIcon columnKey="nextCalibrationDate" />
+                  </TableHead>
+                  <TableHead className="w-[90px] text-center cursor-pointer hover:text-primary" onClick={() => toggleSort("totalTests")}>
+                    检测次数 <SortIcon columnKey="totalTests" />
+                  </TableHead>
                   <TableHead className="w-[120px]">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDevices.slice(0, 15).map((d) => (
+                {pagedDevices.map((d) => (
                   <TableRow key={d.id}>
                     <TableCell>{d.id}</TableCell>
                     <TableCell className="font-medium">{d.name}</TableCell>
                     <TableCell className="truncate max-w-[130px]">{d.model || "-"}</TableCell>
                     <TableCell className="truncate max-w-[180px]">{d.manufacturer || "-"}</TableCell>
+                    <TableCell className="truncate max-w-[150px]">{d.functionDesc || "-"}</TableCell>
+                    <TableCell className="truncate max-w-[120px]">{d.measurementRange || "-"}</TableCell>
                     <TableCell className="text-center">
                       <Badge variant={d.status === "正常" ? "default" : "outline"}>{d.status || "-"}</Badge>
                     </TableCell>
@@ -190,7 +250,10 @@ export default function DeviceManage() {
                         {d.calibrationStatus}
                       </Badge>
                     </TableCell>
+                    <TableCell className="truncate max-w-[120px]">{d.calibrationUnit || "-"}</TableCell>
+                    <TableCell className="truncate max-w-[140px]">{d.calibrationCertNo || "-"}</TableCell>
                     <TableCell className="truncate max-w-[110px]">{d.location || "-"}</TableCell>
+                    <TableCell className="truncate max-w-[100px]">{d.contact || "-"}</TableCell>
                     <TableCell>{d.nextCalibrationDate || "-"}</TableCell>
                     <TableCell className="text-center">{d.totalTests > 0 ? d.totalTests : <span className="text-muted-foreground">-</span>}</TableCell>
                     <TableCell>
@@ -208,6 +271,30 @@ export default function DeviceManage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>每页</span>
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+                <SelectTrigger className="w-[70px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15</SelectItem>
+                  <SelectItem value="30">30</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span>条，共 {filteredDevices.length} 台</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>首页</Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>上一页</Button>
+              <span className="px-3 text-sm">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>下一页</Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>末页</Button>
+            </div>
           </div>
         </CardContent>
       </Card>

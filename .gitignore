@@ -1,21 +1,42 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Environment
 .env
 .env.local
 .env.*.local
+
+# Logs
 *.log
+
+# OS
 .DS_Store
 Thumbs.db
-*.xlsx
-tsconfig.tsbuildinfo
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 
-# 旧版本/废弃目录（可手动删除物理目录）
-frontend/
-backend/
+# IDE
+.vscode/
+.idea/
+
+# Excel data files (not source code)
+*.xlsx
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
+
+# Temp files
 .tmp_docx/
 
-# 用户上传的归档照片（不应提交）
-uploads/
+# User uploads
+backend/uploads/
+
+# Backup files
+*.bak
