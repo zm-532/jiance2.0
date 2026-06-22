@@ -17,7 +17,7 @@ export default function SupplierStats() {
     grid: { left: "3%", right: "4%", bottom: "3%", top: "10%", containLabel: true },
     xAxis: {
       type: "category" as const, data: materialStats.map((c) => c.material),
-      axisLabel: { rotate: 25, fontSize: 12 }, axisLine: { lineStyle: { color: "#e8e8e8" } },
+      axisLabel: { rotate: 25, fontSize: 12, color: "#475569" }, axisLine: { lineStyle: { color: "#e8e8e8" } },
     },
     yAxis: { type: "value" as const, max: 100, name: "合格率(%)", splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
     series: [{

@@ -31,6 +31,17 @@ class PhotoResponse(BaseModel):
     include_in_report: bool
     sample_name: str | None = None
     entrust_no: str | None = None
+
+    # 配置驱动 OCR 增量字段
+    device_key: str | None = None
+    group_id: str | None = None
+    config_id: str | None = None
+    material_spec: str | None = None
+    sample_count: int | None = None
+    aggregation_method: str | None = None
+    result_values: list | None = None
+    frequency_data: list | None = None
+
     updated_at: datetime
 
     model_config = {"from_attributes": True}
@@ -48,6 +59,16 @@ class PhotoUpdate(BaseModel):
     entrust_no: str | None = None
     matched_rule_id: str | None = None
     matched_rule_name: str | None = None
+    error: str | None = None
+    # 配置驱动增量字段
+    device_key: str | None = None
+    group_id: str | None = None
+    config_id: str | None = None
+    material_spec: str | None = None
+    sample_count: int | None = None
+    aggregation_method: str | None = None
+    result_values: list | None = None
+    frequency_data: list | None = None
 
 
 class PhotoListParams(BaseModel):

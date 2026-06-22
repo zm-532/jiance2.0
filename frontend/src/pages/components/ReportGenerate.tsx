@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { FileText, Eye, Download, Printer, Camera } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { FileText, Eye, Download, Printer, Camera, Layers, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,13 +7,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { reportTemplates, experimentRecords, capabilityItems } from "@/mock/data";
-import { listPhotos, getPhotoDownloadUrl, type ArchivedPhoto } from "@/services/ocr";
+import { listPhotos, getPhotoDownloadUrl, judgeGroup, generateReport as generateReportApi, type ArchivedPhoto } from "@/services/ocr";
+import { toast } from "sonner";
 
 export default function ReportGenerate() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [previewVisible, setPreviewVisible] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<string>("");
   const [reportPhotos, setReportPhotos] = useState<ArchivedPhoto[]>([]);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (selectedTemplate) {
@@ -23,27 +25,54 @@ export default function ReportGenerate() {
     }
   }, [selectedTemplate]);
 
+  // 按 group_id 聚合纳入报告的照片
+  const groupedReportPhotos = useMemo(() => {
+    const groups: Record<string, ArchivedPhoto[]> = {};
+    const ungrouped: ArchivedPhoto[] = [];
+    reportPhotos.forEach((p) => {
+      if (p.group_id) {
+        groups[p.group_id] = groups[p.group_id] || [];
+        groups[p.group_id].push(p);
+      } else {
+        ungrouped.push(p);
+      }
+    });
+    return { groups, ungrouped };
+  }, [reportPhotos]);
+
   const template = reportTemplates.find((t) => t.id === selectedTemplate);
 
-  const relatedRecords = selectedTemplate && template
-    ? experimentRecords.filter((r) => {
-        const cat = template.category;
-        if (cat === "金属屏体") return r.sampleName.includes("屏体") || r.sampleName.includes("金属");
-        if (cat === "亚克力") return r.sampleName.includes("亚克力") || r.sampleName.includes("透明");
-        return r.sampleName.includes(cat);
-      })
+  const relatedRecords = selectedTemplate
+    ? experimentRecords
     : [];
 
-  const relatedCapabilities = selectedTemplate && template
-    ? capabilityItems.filter((c) => {
-        const cat = template.category;
-        if (cat === "金属屏体") return c.sampleName.includes("金属屏体");
-        if (cat === "亚克力") return c.sampleName === "亚克力" || c.sampleName.includes("透明屏体");
-        return c.sampleName.includes(cat);
-      })
+  const relatedCapabilities = selectedTemplate
+    ? capabilityItems
     : [];
 
   const record = experimentRecords.find((r) => r.id === selectedRecord);
+
+  const handleGenerateWord = async () => {
+    if (!selectedTemplate) return;
+    setGenerating(true);
+    try {
+      const blob = await generateReportApi(selectedTemplate);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      a.download = `检测报告_${selectedTemplate}_${timestamp}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("报告已生成并下载");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "报告生成失败");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div>
@@ -55,7 +84,7 @@ export default function ReportGenerate() {
             <TableHeader>
               <TableRow>
                 <TableHead>模板名称</TableHead>
-                <TableHead className="w-[120px]">适用类别</TableHead>
+                <TableHead className="w-[200px]">报告类型</TableHead>
                 <TableHead className="w-[180px]">模板文件</TableHead>
                 <TableHead className="w-[80px] text-center">版本</TableHead>
                 <TableHead className="w-[200px]">操作</TableHead>
@@ -65,7 +94,7 @@ export default function ReportGenerate() {
               {reportTemplates.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium"><FileText className="size-4 inline mr-2 text-primary" />{t.name}</TableCell>
-                  <TableCell>{t.category}</TableCell>
+                  <TableCell>{t.reportType}</TableCell>
                   <TableCell className="truncate max-w-[180px]">{t.file}</TableCell>
                   <TableCell className="text-center">{t.version}</TableCell>
                   <TableCell>
@@ -166,6 +195,96 @@ export default function ReportGenerate() {
         </Card>
       )}
 
+      {/* 按组聚合的检测数据 */}
+      {selectedTemplate && reportPhotos.length > 0 && Object.keys(groupedReportPhotos.groups).length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Layers className="size-4 text-primary" />
+              <h3 className="font-semibold">检测项配置组数据（按组聚合）</h3>
+              <Badge variant="secondary">{Object.keys(groupedReportPhotos.groups).length} 组</Badge>
+            </div>
+            {Object.entries(groupedReportPhotos.groups).map(([groupId, groupPhotos]) => {
+              const first = groupPhotos[0];
+              const groupJudgment = judgeGroup(groupPhotos);
+              const maxSampleCount = Math.max(...groupPhotos.map((p) => p.result_values?.length || 0), 0);
+              return (
+                <div key={groupId} className="border rounded-lg p-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{first.sample_name || "未命名"}</span>
+                      <Badge variant="outline" className="text-xs">{first.device_key || "未知设备"}</Badge>
+                      {first.entrust_no && <span className="text-xs text-muted-foreground">委托号: {first.entrust_no}</span>}
+                      <span className="text-xs text-muted-foreground">{groupPhotos.length} 项</span>
+                    </div>
+                    <Badge variant={groupJudgment === "合格" ? "default" : groupJudgment === "不合格" ? "destructive" : "secondary"}>
+                      组判定: {groupJudgment}
+                    </Badge>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[160px]">检测项</TableHead>
+                        <TableHead className="w-[120px]">标准要求</TableHead>
+                        {Array.from({ length: maxSampleCount }).map((_, i) => (
+                          <TableHead key={i} className="w-[60px] text-center">试样{i + 1}</TableHead>
+                        ))}
+                        <TableHead className="w-[80px] text-center">结果值</TableHead>
+                        <TableHead className="w-[60px] text-center">判定</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {groupPhotos.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="text-xs font-medium">{p.test_item || "-"}</TableCell>
+                          <TableCell className="text-xs">{p.standard_requirement || "-"}</TableCell>
+                          {Array.from({ length: maxSampleCount }).map((_, i) => (
+                            <TableCell key={i} className="text-xs text-center">
+                              {p.result_values && p.result_values[i] !== undefined ? p.result_values[i] : "-"}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-center font-semibold text-xs" style={{ color: p.judgment === "合格" ? "#52c41a" : p.judgment === "不合格" ? "#f5222d" : "#faad14" }}>
+                            {p.recognized_value || "-"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={p.judgment === "合格" ? "default" : p.judgment === "不合格" ? "destructive" : "secondary"} className="text-[10px]">
+                              {p.judgment}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 导出 Word 报告 */}
+      {selectedTemplate && reportPhotos.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">导出检测报告</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  将已纳入报告的 {reportPhotos.length} 条检测数据填充到模板并导出为 Word 文件
+                </p>
+              </div>
+              <Button
+                onClick={handleGenerateWord}
+                disabled={generating}
+              >
+                {generating ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+                {generating ? "生成中..." : "导出 Word 报告"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* OCR photo attachments for report */}
       {selectedTemplate && (
         <Card className="mb-6">
@@ -234,7 +353,7 @@ export default function ReportGenerate() {
                 <div><span className="text-muted-foreground">规格型号：</span>{record.specModel}</div>
                 <div className="col-span-2"><span className="text-muted-foreground">生产厂家：</span>{record.manufacturer}</div>
                 <div><span className="text-muted-foreground">检测项目：</span>{record.testItem}</div>
-                <div><span className="text-muted-foreground">判定标准：</span>{template?.category}</div>
+                <div><span className="text-muted-foreground">判定标准：</span>{relatedCapabilities.find(c => c.testItem === record.testItem)?.judgmentStandard || '-'}</div>
                 <div><span className="text-muted-foreground">标准要求：</span>{record.requirement}</div>
                 <div>
                   <span className="text-muted-foreground">检测结果：</span>
@@ -280,12 +399,13 @@ export default function ReportGenerate() {
               </TooltipTrigger>
               <TooltipContent>打印功能暂未开放</TooltipContent>
             </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span><Button disabled><Download className="size-4 mr-1" /> 导出Word（缺数据）</Button></span>
-              </TooltipTrigger>
-              <TooltipContent>缺少 Word 模板字段映射和后端导出服务</TooltipContent>
-            </Tooltip>
+            <Button
+              onClick={handleGenerateWord}
+              disabled={generating || reportPhotos.length === 0}
+            >
+              {generating ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
+              {generating ? "生成中..." : "导出Word"}
+            </Button>
             <Button variant="secondary" onClick={() => setPreviewVisible(false)}>关闭</Button>
           </DialogFooter>
         </DialogContent>

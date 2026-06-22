@@ -357,11 +357,11 @@ export const ocrRules: OCRRule[] = (raw.ocrRules || []).map((r: any) => ({
 // 从能力表提取的样品类别列表
 export const capabilitySampleNames: string[] = [...new Set(capabilityItems.map(c => c.sampleName))].sort()
 
-// 报告模板（基于能力表样品类别，匹配检测报告模板文件）
+// 报告模板（三种格式均适用于金属吸隔声板，按报告详细程度区分）
 export const reportTemplates = [
-  { id: 'R001', name: '检测报告模版-1', category: '金属屏体', version: 'v1.0', file: '检测报告模版-1.docx' },
-  { id: 'R002', name: '检测报告模版-2', category: '亚克力', version: 'v1.0', file: '检测报告模版-2.docx' },
-  { id: 'R003', name: '检测报告模版-3', category: 'PC板', version: 'v1.0', file: '检测报告模版-3.docx' },
+  { id: 'R001', name: '检测报告模版-1', reportType: '标准报告（含声学频率数据）', version: 'v1.0', file: '检测报告模版-1.docx' },
+  { id: 'R002', name: '检测报告模版-2', reportType: '详细报告（含声学数据+试验照片）', version: 'v1.0', file: '检测报告模版-2.docx' },
+  { id: 'R003', name: '检测报告模版-3', reportType: '简要报告（仅结果汇总）', version: 'v1.0', file: '检测报告模版-3.docx' },
 ]
 
 // 供应商基础信息（144家，来自钉钉工作台）

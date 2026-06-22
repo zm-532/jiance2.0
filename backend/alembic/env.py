@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.db.base import Base
 from app.models.photo import Photo  # noqa: F401 — register model on Base.metadata
+from app.models.test_item_config import TestItemConfig  # noqa: F401 — register model on Base.metadata
 from app.core.config import settings
 
 config = context.config

@@ -86,7 +86,7 @@ export default function Dashboard() {
     grid: { left: "3%", right: "4%", bottom: "12%", top: "5%", containLabel: true },
     xAxis: {
       type: "category" as const, data: monthlyTestVolume.map((d: any) => d.month),
-      axisLabel: { rotate: 30 }, axisLine: { lineStyle: { color: "#e8e8e8" } },
+      axisLabel: { rotate: 30, color: "#475569" }, axisLine: { lineStyle: { color: "#e8e8e8" } },
     },
     yAxis: { type: "value" as const, splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
     series: [

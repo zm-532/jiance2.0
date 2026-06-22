@@ -1,0 +1,937 @@
+[
+  {
+    "device_name": "材料燃烧热值试验装置ZC-22",
+    "sample_name": "玻璃棉",
+    "image_description": "前置条件：1#、2#、3#、4#、5#、6#、7#\n识别内容：对应编号后面内容填入测试值1-5，如10419.8J/K，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "材料燃烧热值试验装置ZC-22",
+    "sample_name": "聚酯纤维板",
+    "image_description": "前置条件：1#、2#、3#、4#、5#、6#、7#\n识别内容：对应编号后面内容填入测试值1-5，如10419.8J/K，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "材料燃烧热值试验装置ZC-22",
+    "sample_name": "聚酯纤维棉",
+    "image_description": "前置条件：1#、2#、3#、4#、5#、6#、7#\n识别内容：对应编号后面内容填入测试值1-5，如10419.8J/K，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "材料燃烧热值试验装置ZC-22",
+    "sample_name": "岩棉板",
+    "image_description": "前置条件：1#、2#、3#、4#、5#、6#、7#\n识别内容：对应编号后面内容填入测试值1-5，如10419.8J/K，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "板间胶条",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "板柱间胶条",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "解耦胶条",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "平板胶条",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "橡胶垫圈",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "橡胶块",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "臭氧老化试验箱ZC-44",
+    "sample_name": "U型胶条",
+    "image_description": "过程试验"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "板间胶条",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "板柱间胶条",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "解耦胶条",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "平板胶条",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "橡胶垫圈",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "橡胶块",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温脆性测定仪ZC-41",
+    "sample_name": "U型胶条",
+    "image_description": "定性试验无具体值"
+  },
+  {
+    "device_name": "低温回缩仪ZC-40",
+    "sample_name": "板间胶条",
+    "image_description": "前置条件：1#、2#、3#行对应TR10列\n识别内容：1#、2#、3#行对应TR10列对应值-45.1℃、-44.8℃、-44.8℃填入测试值1-3，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "低温回缩仪ZC-40",
+    "sample_name": "板柱间胶条",
+    "image_description": "前置条件：1#、2#、3#行对应TR10列\n识别内容：1#、2#、3#行对应TR10列对应值-45.1℃、-44.8℃、-44.8℃填入测试值1-3，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "低温回缩仪ZC-40",
+    "sample_name": "解耦胶条",
+    "image_description": "前置条件：1#、2#、3#行对应TR10列\n识别内容：1#、2#、3#行对应TR10列对应值-45.1℃、-44.8℃、-44.8℃填入测试值1-3，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "低温回缩仪ZC-40",
+    "sample_name": "平板胶条",
+    "image_description": "前置条件：1#、2#、3#行对应TR10列\n识别内容：1#、2#、3#行对应TR10列对应值-45.1℃、-44.8℃、-44.8℃填入测试值1-3，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "低温回缩仪ZC-40",
+    "sample_name": "橡胶块",
+    "image_description": "前置条件：1#、2#、3#行对应TR10列\n识别内容：1#、2#、3#行对应TR10列对应值-45.1℃、-44.8℃、-44.8℃填入测试值1-3，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "低温回缩仪ZC-40",
+    "sample_name": "U型胶条",
+    "image_description": "前置条件：1#、2#、3#行对应TR10列\n识别内容：1#、2#、3#行对应TR10列对应值-45.1℃、-44.8℃、-44.8℃填入测试值1-3，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "板间胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "板柱间胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "解耦胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "平板胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "橡胶垫圈",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "橡胶块",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电热鼓风干燥箱",
+    "sample_name": "U型胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "电液伺服疲劳试验机ZC-39",
+    "sample_name": "铁路金属屏体",
+    "image_description": "识别内容：测试项周期列对应的数值，且需要对测试屏体完整情况进行分析（试验过程屏体有无裂缝等）"
+  },
+  {
+    "device_name": "电液伺服疲劳试验机ZC-39",
+    "sample_name": "铁路透明屏体",
+    "image_description": "识别内容：测试项周期列对应的数值，且需要对测试屏体完整情况进行分析（试验过程屏体有无裂缝等）"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "钢板Q 235B",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "钢板Q 235C",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "钢板Q 355B",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "钢板Q 355C",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（10.9级螺栓）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（10H螺母）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应最大力行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（8.8级螺栓）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（8H螺母）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应最大力行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（大六角头螺栓连接副-10.9S螺栓）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（大六角头螺栓连接副-10H螺母）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应最大力行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（大六角头螺栓连接副-8.8S螺栓）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（大六角头螺栓连接副-8H螺母）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应最大力行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "紧固件（扭剪型螺栓）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "型钢Q 235B",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "型钢Q 235C",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "型钢Q 355C",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的抗拉强度行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应抗拉强度行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29",
+    "sample_name": "型钢Q355B",
+    "image_description": "前置条件：试样1、2、3、4、5列对应的断后伸长率行数值为系统中对应结果1~5\n识别内容：试样1、2、3、4、5列对应断后伸长率行对应数值，并自动计算平均值作为结果值"
+  },
+  {
+    "device_name": "电液伺服万能试验机ZC-29ZC-29",
+    "sample_name": "紧固件（大六角头螺栓连接副-10H螺母）",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应最大力行对应数值，自动计算平均值作为测试值"
+  },
+  {
+    "device_name": "电子称",
+    "sample_name": "聚酯纤维板",
+    "image_description": "称量重量，测量尺寸，最终计算密度值"
+  },
+  {
+    "device_name": "电子称",
+    "sample_name": "亚克力",
+    "image_description": "称量重量，测量尺寸，最终计算密度值"
+  },
+  {
+    "device_name": "电子称",
+    "sample_name": "PC板",
+    "image_description": "称量重量，测量尺寸，最终计算密度值"
+  },
+  {
+    "device_name": "砝码",
+    "sample_name": "聚酯纤维板",
+    "image_description": "测量前后高度，计算高度差"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "钢板Q 235B",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "钢板Q 235C",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "钢板Q 355B",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "钢板Q 355C",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "铝板",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应Si行检测数值，AVG列对应的Si行数值作为最终测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "铝型材",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应Si行对应数值，AVG列对应的Si行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "型钢Q 235B",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "型钢Q 235C",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "型钢Q 355B",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光电直读光谱仪ZC-16",
+    "sample_name": "型钢Q 355C",
+    "image_description": "前置条件：试样1、2、3、4、5列为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5列对应C行对应数值，AVG列对应的C行数值作为测试值（平均值）"
+  },
+  {
+    "device_name": "光谱测色仪ZC-51",
+    "sample_name": "亚克力",
+    "image_description": "前置条件：试样1、2、3、4、5行为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5行对应的YI列对应数值作为测试值"
+  },
+  {
+    "device_name": "光谱测色仪ZC-51",
+    "sample_name": "PC板",
+    "image_description": "前置条件：试样1、2、3、4、5行为系统中对应测试值1-5\n识别内容：试样1、2、3、4、5行对应的YI列对应数值作为测试值"
+  },
+  {
+    "device_name": "建材不燃性试验炉ZC-35",
+    "sample_name": "玻璃棉",
+    "image_description": "设备不记录数据，检测员表观记录，样品测试前后质量记录质量差"
+  },
+  {
+    "device_name": "建材不燃性试验炉ZC-35",
+    "sample_name": "聚酯纤维板",
+    "image_description": "设备不记录数据，检测员表观记录，样品测试前后质量记录质量差"
+  },
+  {
+    "device_name": "建材不燃性试验炉ZC-35",
+    "sample_name": "聚酯纤维棉",
+    "image_description": "设备不记录数据，检测员表观记录，样品测试前后质量记录质量差"
+  },
+  {
+    "device_name": "建材不燃性试验炉ZC-35",
+    "sample_name": "岩棉板",
+    "image_description": "设备不记录数据，检测员表观记录，样品测试前后质量记录质量差"
+  },
+  {
+    "device_name": "建材可燃性试验炉",
+    "sample_name": "亚克力",
+    "image_description": "定性试验无量值\n识别内容：识别样品融化状态，边角融化为不合格，部分区域发黑未融化为合格"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "钢板Q 235B",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "钢板Q 235C",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "钢板Q 355B",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "钢板Q 355C",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "型钢Q 235B",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "型钢Q 235C",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "型钢Q 355B",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "金属摆锤冲击试验机ZC-37",
+    "sample_name": "型钢Q 355C",
+    "image_description": "前置条件：识别图片中的吸收功数值\n识别内容：吸收功行对应的数值识别到测试值中，计算平均值作为测试值"
+  },
+  {
+    "device_name": "抗风压检测试验机ZC-36",
+    "sample_name": "公路金属屏体",
+    "image_description": "前置条件：识别图片中的检测压力列最值行中正压变形中B（mm）和检测压力列最值行中负压变形中B（mm）的内容进行大小比较\n识别内容：识别图片中1#、2#、3#中的检测压力列最值行中正压变形B（mm）和检测压力列最值行中负压变形中B（mm）的内容绝对值最大值作为测试值"
+  },
+  {
+    "device_name": "抗风压检测试验机ZC-36",
+    "sample_name": "公路透明屏体",
+    "image_description": "前置条件：识别图片中的检测压力列最值行中正压变形中B（mm）和检测压力列最值行中负压变形中B（mm）的内容进行大小比较\n识别内容：识别图片中1#、2#、3#中的检测压力列最值行中正压变形B（mm）和检测压力列最值行中负压变形中B（mm）的内容绝对值最大值作为测试值"
+  },
+  {
+    "device_name": "抗风压检测试验机ZC-36",
+    "sample_name": "铁路金属屏体",
+    "image_description": "前置条件：识别图片中的5000Pa行中正压变形中B（mm）和-5000Pa行中负压变形中B（mm）的内容进行大小比较\n识别内容：识别图片中1#、2#、3#中的5000Pa行中正压变形中B（mm）和-5000Pa行中负压变形中B（mm）的内容绝对值最大值作为测试值"
+  },
+  {
+    "device_name": "抗风压检测试验机ZC-36",
+    "sample_name": "铁路透明屏体",
+    "image_description": "前置条件：识别图片中的5000Pa行中正压变形中B（mm）和-5000Pa行中负压变形中B（mm）的内容进行大小比较\n识别内容：识别图片中1#、2#、3#中的5000Pa行中正压变形中B（mm）和-5000Pa行中负压变形中B（mm）的内容绝对值最大值作为测试值"
+  },
+  {
+    "device_name": "落锤冲击试验机ZC-38",
+    "sample_name": "公路金属屏体",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "落锤冲击试验机ZC-38",
+    "sample_name": "铁路金属屏体",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "落锤冲击试验机ZC-38",
+    "sample_name": "铁路透明屏体",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "落锤冲击试验机ZC-38",
+    "sample_name": "亚克力",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "扭矩系数测定仪ZC-56",
+    "sample_name": "紧固件（大六角头螺栓连接副）",
+    "image_description": "识别图中ID中1~8行扭矩系数数值为结果1~8，/X行为结果值"
+  },
+  {
+    "device_name": "扭矩系数测定仪ZC-56",
+    "sample_name": "紧固件（扭剪型螺栓）",
+    "image_description": "识别图中ID中1~8行轴力和扭矩系数数值为结果1~8，/X行为结果值"
+  },
+  {
+    "device_name": "漆膜冲击器ZC-23",
+    "sample_name": "粉末",
+    "image_description": "定性分析无量值\n识别内容：识别样品表面凹坑周围是否有裂纹，有裂纹不合格，无裂纹合格"
+  },
+  {
+    "device_name": "漆膜冲击器ZC-23",
+    "sample_name": "油漆",
+    "image_description": "定性分析无量值\n识别内容：识别样品表面凹坑周围是否有裂纹，有裂纹不合格，无裂纹合格"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "板间胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "板柱间胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "解耦胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "平板胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "橡胶垫圈",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "橡胶块",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、数显邵氏A型硬度计ZC-59",
+    "sample_name": "U型胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容与同批号硬度结果值做差，取绝对值作为测试值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "板间胶条",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "板柱间胶条",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "解耦胶条",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "平板胶条",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "橡胶垫圈",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "橡胶块",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43、万能试验机ZC-09",
+    "sample_name": "U型胶条",
+    "image_description": "识别拉伸强度行001、002、003、004、005列数值为结果1~5，结果值为1~5结果中的中值（中间值，非计算平均值）"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "板间胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "板柱间胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "解耦胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "平板胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "橡胶垫圈",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "橡胶块",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "热空气老化箱ZC-43",
+    "sample_name": "U型胶条",
+    "image_description": "测试样品老化试验设备，无数值"
+  },
+  {
+    "device_name": "设备名称",
+    "sample_name": "样品名称",
+    "image_description": "图片说明"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "公路金属屏体",
+    "image_description": "识别图片中右上角RW行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "公路透明屏体",
+    "image_description": "识别图片中右上角RW行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "聚酯纤维板",
+    "image_description": "识别图片中NRC行行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "聚酯纤维棉",
+    "image_description": "识别图片中NRC行行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "泡沫铝",
+    "image_description": "识别图片中NRC行行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "铁路金属屏体",
+    "image_description": "识别图片中右上角RW行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "铁路透明屏体",
+    "image_description": "识别图片中右上角RW行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "亚克力",
+    "image_description": "识别图片中右上角RW行为结果1，也是结果值"
+  },
+  {
+    "device_name": "声学实验室设备ZC-49",
+    "sample_name": "PC板",
+    "image_description": "识别图片中右上角RW行为结果1，也是结果值"
+  },
+  {
+    "device_name": "石英膨胀计ZC-13",
+    "sample_name": "亚克力",
+    "image_description": "每次拍一张图片，识别图片中线性膨胀系数最后一行数值，并除以1000为结果1、另一张图片中线性膨胀系数最后一行数值，并除以1000为结果2，最终取结果1和结果2的平均值为结果值"
+  },
+  {
+    "device_name": "石英膨胀计ZC-13",
+    "sample_name": "PC板",
+    "image_description": "每次拍一张图片，识别图片中线性膨胀系数最后一行数值，并除以1000为结果1、另一张图片中线性膨胀系数最后一行数值，并除以1000为结果2，最终取结果1和结果2的平均值为结果值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "板间胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "板柱间胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "解耦胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "聚酯纤维板",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "平板胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "无碱憎水玻璃纤维布",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "橡胶垫圈",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "橡胶块",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "数显邵氏A型硬度计ZC-59",
+    "sample_name": "U型胶条",
+    "image_description": "前置条件：每个图片作为一个检测值中的内容\n识别内容：识别图片中的内容作为测试值"
+  },
+  {
+    "device_name": "塑料摆锤冲击试验机ZC-08",
+    "sample_name": "亚克力",
+    "image_description": "识别图片中强度行数值为结果1，试验一共做10个，结果一共为1~10 ，最终结果值为10个的平均值"
+  },
+  {
+    "device_name": "塑料摆锤冲击试验机ZC-08",
+    "sample_name": "PC板",
+    "image_description": "识别图片中强度行数值为结果1，试验一共做10个，结果一共为1~10 ，最终结果值为10个的平均值"
+  },
+  {
+    "device_name": "透光率/雾度测定仪ZC-01",
+    "sample_name": "亚克力",
+    "image_description": "识别图片中T行数值为结果1，试验一共做3个，拍摄3个图片，结果一共为1~3 ，最终结果值为3个的平均值"
+  },
+  {
+    "device_name": "透光率/雾度测定仪ZC-01",
+    "sample_name": "PC板",
+    "image_description": "识别图片中T行数值为结果1，试验一共做3个，拍摄3个图片，结果一共为1~3 ，最终结果值为3个的平均值"
+  },
+  {
+    "device_name": "涂层测厚仪ZC-58",
+    "sample_name": "紧固件（大六角）",
+    "image_description": "识别图片中数值为结果1，试验一共做10个，拍摄10个图片，结果一共为1~10 ，最终结果值为10个的平均值"
+  },
+  {
+    "device_name": "涂层测厚仪ZC-58",
+    "sample_name": "紧固件（垫片）",
+    "image_description": "识别图片中数值为结果1，试验一共做10个，拍摄10个图片，结果一共为1~10 ，最终结果值为10个的平均值"
+  },
+  {
+    "device_name": "涂层测厚仪ZC-58",
+    "sample_name": "紧固件（螺母）",
+    "image_description": "识别图片中数值为结果1，试验一共做10个，拍摄10个图片，结果一共为1~10 ，最终结果值为10个的平均值"
+  },
+  {
+    "device_name": "涂层测厚仪ZC-58",
+    "sample_name": "紧固件（螺栓）",
+    "image_description": "识别图片中数值为结果1，试验一共做10个，拍摄10个图片，结果一共为1~10 ，最终结果值为10个的平均值"
+  },
+  {
+    "device_name": "涂层测厚仪ZC-58",
+    "sample_name": "紧固件（扭剪型螺栓）",
+    "image_description": "暂无"
+  },
+  {
+    "device_name": "涂层附着力测试装置ZC-06",
+    "sample_name": "粉末",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "涂层附着力测试装置ZC-06",
+    "sample_name": "油漆",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "板间胶条",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "板柱间胶条",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "镀锌钢板",
+    "image_description": "识别图片中抗拉强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "复合针孔铝板",
+    "image_description": "识别图片中抗拉强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "解耦胶条",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "铝板",
+    "image_description": "识别图片中抗拉强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "铝型材",
+    "image_description": "识别图片中抗拉强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "平板胶条",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "橡胶垫圈",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "橡胶块",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "亚克力",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "岩棉板",
+    "image_description": "识别图片中抗拉强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "岩棉板（h＜50mm）",
+    "image_description": "识别图片中压缩强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "岩棉板（h≥50mm）",
+    "image_description": "识别图片中压缩强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "PC板",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "万能试验机ZC-09",
+    "sample_name": "U型胶条",
+    "image_description": "识别图片中拉伸强度行001、002、003、004、005列数值为结果1到结果5，最终要计算5个结果的平均值为结果值"
+  },
+  {
+    "device_name": "维卡软化点试验机ZC-11",
+    "sample_name": "亚克力",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应内容作为测试值\n识别内容：识别通道1#、2#、3#对应温度列内容作为测试值"
+  },
+  {
+    "device_name": "维卡软化点试验机ZC-11",
+    "sample_name": "PC板",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应内容作为测试值\n识别内容：识别通道1#、2#、3#对应温度列内容作为测试值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（10.9级螺栓）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（大六角头螺栓连接副-10H螺母）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（大六角头螺栓连接副-8H螺母）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（垫片）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（螺母10H）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（螺母8H，M16＜D≤M39）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（螺母8H，M5≤D≤M16）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（扭剪型螺栓）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（d≤16,8.8级螺栓）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "维氏硬度计ZC-21",
+    "sample_name": "紧固件（d≥16,8.8级螺栓）",
+    "image_description": "前置条件：识别通道1#、2#、3#中对应HV内容作为测试值\n识别内容：识别通道1#、2#、3#对应HV列内容作为结果1、结果2、结果3，最终计算结果1~3的平均值为结果值"
+  },
+  {
+    "device_name": "氙灯老化试验箱",
+    "sample_name": "粉末",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "氙灯老化试验箱",
+    "sample_name": "油漆",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "显微镜ZC-52",
+    "sample_name": "亚克力",
+    "image_description": "前置条件：\n识别内容："
+  },
+  {
+    "device_name": "显微镜ZC-52",
+    "sample_name": "PC板",
+    "image_description": "前置条件：\n识别内容："
+  },
+  {
+    "device_name": "压缩永久变形装置ZC-28",
+    "sample_name": "橡胶条",
+    "image_description": "前置条件：\n识别内容："
+  },
+  {
+    "device_name": "盐雾试验箱ZC-57",
+    "sample_name": "粉末",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "盐雾试验箱ZC-57",
+    "sample_name": "紧固件（垫片）",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "盐雾试验箱ZC-57",
+    "sample_name": "紧固件（螺母）",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "盐雾试验箱ZC-57",
+    "sample_name": "紧固件（螺栓）",
+    "image_description": "定性分析无量值"
+  },
+  {
+    "device_name": "憎水性试验仪ZC-24",
+    "sample_name": "玻璃棉",
+    "image_description": "称量样品前后质量差值，计算憎水率"
+  },
+  {
+    "device_name": "憎水性试验仪ZC-24",
+    "sample_name": "岩棉",
+    "image_description": "称量样品前后质量差值，计算憎水率"
+  },
+  {
+    "device_name": "重锤冲击试验机 ZC-14",
+    "sample_name": "公路透明屏体",
+    "image_description": "查看碎片质量及测量尺寸角度"
+  },
+  {
+    "device_name": "重锤冲击试验机 ZC-14",
+    "sample_name": "铁路透明屏体",
+    "image_description": "查看碎片质量及测量尺寸角度"
+  },
+  {
+    "device_name": "重锤冲击试验机 ZC-14",
+    "sample_name": "亚克力",
+    "image_description": "查看碎片质量及测量尺寸角度"
+  }
+]

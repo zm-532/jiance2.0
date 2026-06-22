@@ -26,7 +26,7 @@ export default function TimelinessStats() {
     grid: { left: "3%", right: "4%", bottom: "15%", top: "10%", containLabel: true },
     xAxis: {
       type: "category" as const, data: filtered.map((d) => `${d.category}-${d.testItem}`),
-      axisLabel: { rotate: 35, fontSize: 11 }, axisLine: { lineStyle: { color: "#e8e8e8" } },
+      axisLabel: { rotate: 35, fontSize: 11, color: "#475569" }, axisLine: { lineStyle: { color: "#e8e8e8" } },
     },
     yAxis: { type: "value" as const, name: "天数", splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
     series: [{

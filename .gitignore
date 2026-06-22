@@ -40,3 +40,15 @@ backend/uploads/
 
 # Backup files
 *.bak
+
+# AI tool config
+.codebuddy/
+
+# Test artifacts
+backend/test_output_report.docx
+scripts/*_log.txt
+
+# OCR test images (large files, not tracked in git)
+docs/test-img/*.png
+docs/test-img/*.jpeg
+docs/test-img/*.jpg

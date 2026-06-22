@@ -40,4 +40,14 @@ class Photo(Base):
     sample_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     entrust_no: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # 配置驱动 OCR 增量字段（向后兼容，旧数据为 NULL）
+    device_key: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    group_id: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    config_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    material_spec: Mapped[str | None] = mapped_column(String(200), nullable=True)  # 材料规格（动态阈值计算用）
+    sample_count: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 试样数量（手动填写用）
+    aggregation_method: Mapped[str | None] = mapped_column(String(20), nullable=True)  # 聚合方式（手动填写用）
+    result_values: Mapped[list | None] = mapped_column(JSON, nullable=True)  # 多试样原始值，如 [-45.1, -44.8, -44.8]
+    frequency_data: Mapped[list | None] = mapped_column(JSON, nullable=True)  # 声学 1/3 倍频程频率数据
+
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

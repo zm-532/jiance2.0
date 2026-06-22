@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Upload, Eye, Trash2, CheckCircle, Edit, RefreshCw, Download,
-  Search, CheckSquare, Square, X, FileDown,
+  Search, CheckSquare, Square, X, FileDown, ChevronRight, ChevronDown, Info,
+  AlertTriangle, Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,8 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   recognizeImage, listPhotos, updatePhotoMeta, deletePhoto, deletePhotosBatch,
   getPhotoDownloadUrl, judgeResult,
+  fetchDevices, fetchSamples, fetchConfigGroups, recognizeWithConfig,
   type ArchivedPhoto, type PhotoUpdate,
+  type DeviceItem, type SampleItem, type ConfigGroup,
 } from "@/services/ocr";
+import GroupResultCard from "./GroupResultCard";
+import ManualEditDialog from "./ManualEditDialog";
 
 type UploadingItem = {
   id: string;
@@ -51,6 +56,17 @@ export default function PhotoOCR() {
   // Detail dialog
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewItem, setPreviewItem] = useState<ArchivedPhoto | null>(null);
+  const [detailManualEdit, setDetailManualEdit] = useState(false);
+
+  // 配置驱动上传流程状态
+  const [devices, setDevices] = useState<DeviceItem[]>([]);
+  const [selectedDevice, setSelectedDevice] = useState<string>("");
+  const [samples, setSamples] = useState<SampleItem[]>([]);
+  const [selectedSample, setSelectedSample] = useState<string>("");
+  const [configGroups, setConfigGroups] = useState<ConfigGroup[]>([]);
+  const [entrustNo, setEntrustNo] = useState<string>("");
+  const [step, setStep] = useState(1); // 1:选设备 2:选样品 3:预览检测项 4:填委托号 5:上传
+  const [viewMode, setViewMode] = useState<"group" | "flat">("group"); // 结果展示模式：按组/扁平
 
   // Load photos from backend
   const fetchPhotos = useCallback(async () => {
@@ -66,6 +82,45 @@ export default function PhotoOCR() {
   }, []);
 
   useEffect(() => { fetchPhotos(); }, [fetchPhotos]);
+
+  // 加载设备列表
+  useEffect(() => {
+    fetchDevices()
+      .then(setDevices)
+      .catch(() => toast.error("加载设备列表失败"));
+  }, []);
+
+  // 设备变化时联动加载样品列表
+  useEffect(() => {
+    if (!selectedDevice) {
+      setSamples([]);
+      setSelectedSample("");
+      setConfigGroups([]);
+      return;
+    }
+    fetchSamples(selectedDevice)
+      .then((data) => {
+        setSamples(data);
+        setSelectedSample("");
+        setConfigGroups([]);
+        setStep(2);
+      })
+      .catch(() => toast.error("加载样品列表失败"));
+  }, [selectedDevice]);
+
+  // 样品变化时联动加载配置组
+  useEffect(() => {
+    if (!selectedDevice || !selectedSample) {
+      setConfigGroups([]);
+      return;
+    }
+    fetchConfigGroups(selectedDevice, selectedSample)
+      .then((data) => {
+        setConfigGroups(data);
+        setStep(3);
+      })
+      .catch(() => toast.error("加载配置组失败"));
+  }, [selectedDevice, selectedSample]);
 
   // Upload handler
   const handleUpload = useCallback(async (file: File) => {
@@ -93,6 +148,39 @@ export default function PhotoOCR() {
   const clearUploads = () => {
     setUploading((prev) => prev.filter((u) => u.status !== "完成" && u.status !== "失败"));
   };
+
+  // 配置驱动上传处理
+  const handleConfigUpload = useCallback(async (file: File) => {
+    if (!selectedDevice || !selectedSample) {
+      toast.error("请先选择设备和样品");
+      return;
+    }
+    const uploadId = `up_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const item: UploadingItem = { id: uploadId, fileName: file.name, progress: 0, status: "上传中" };
+    setUploading((prev) => [item, ...prev]);
+
+    const result = await recognizeWithConfig(
+      file,
+      selectedDevice,
+      selectedSample,
+      entrustNo || undefined,
+      (status, progress) => {
+        setUploading((prev) =>
+          prev.map((u) => u.id === uploadId ? { ...u, progress: progress || 0, status: progress && progress >= 100 ? "完成" : "识别中" } : u)
+        );
+      }
+    );
+
+    if (result.success) {
+      setUploading((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: 100, status: "完成" } : u));
+      const itemCount = configGroups.reduce((sum, g) => sum + g.items.length, 0);
+      toast.success(`${file.name} 识别完成，提取 ${itemCount} 个检测项`);
+      fetchPhotos();
+    } else {
+      setUploading((prev) => prev.map((u) => u.id === uploadId ? { ...u, progress: 100, status: "失败", error: result.error } : u));
+      toast.error(`${file.name} 识别失败: ${result.error}`);
+    }
+  }, [selectedDevice, selectedSample, entrustNo, configGroups, fetchPhotos]);
 
   // Filtering
   const filteredPhotos = photos.filter((p) => {
@@ -161,7 +249,7 @@ export default function PhotoOCR() {
   // Confirm (set status to 已识别)
   const handleConfirm = async (photo: ArchivedPhoto) => {
     const judgment = photo.standard_requirement
-      ? judgeResult(photo.recognized_value || "", photo.standard_requirement)
+      ? judgeResult(photo.recognized_value || "", photo.standard_requirement, photo.material_spec || undefined)
       : "待判定";
     try {
       await updatePhotoMeta(photo.id, { status: "已识别", judgment, include_in_report: true });
@@ -238,19 +326,149 @@ export default function PhotoOCR() {
 
   return (
     <div>
-      {/* Upload area */}
+      {/* 配置驱动上传流程 */}
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <h3 className="font-semibold mb-4">上传试验数据照片</h3>
-          <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:border-primary transition-colors">
-            <Upload className="size-10 text-muted-foreground mb-2" />
-            <span className="text-sm font-medium">点击或拖拽照片到此区域上传</span>
-            <span className="text-xs text-muted-foreground mt-1">支持 JPG、PNG、BMP 格式，系统将自动调用 PaddleOCR 识别</span>
-            <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
-              Array.from(e.target.files || []).forEach(handleUpload);
-              e.target.value = "";
-            }} />
-          </label>
+          <h3 className="font-semibold mb-4">配置驱动上传（按设备维度批量提取检测项）</h3>
+
+          {/* 步骤指示器 */}
+          <div className="flex items-center gap-2 mb-6 text-xs">
+            {[1, 2, 3, 4, 5].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className="flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-semibold"
+                  style={{ backgroundColor: step >= s ? "#1677ff" : "#cbd5e1" }}
+                >
+                  {s}
+                </div>
+                <span style={{ color: step >= s ? "#1677ff" : "#94a3b8" }}>
+                  {["选设备", "选样品", "预览检测项", "填委托号", "上传"][s - 1]}
+                </span>
+                {s < 5 && <ChevronRight className="size-3 text-muted-foreground" />}
+              </div>
+            ))}
+          </div>
+
+          {/* 步骤 1：选择设备 */}
+          <div className="mb-4">
+            <label className="text-sm font-medium mb-2 block">步骤 1：选择检测设备</label>
+            <Select value={selectedDevice} onValueChange={(v) => { setSelectedDevice(v); }}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="请选择检测设备" /></SelectTrigger>
+              <SelectContent>
+                {devices.map((d) => (
+                  <SelectItem key={d.device_key} value={d.device_key}>{d.device_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 步骤 2：选择样品 */}
+          {step >= 2 && (
+            <div className="mb-4">
+              <label className="text-sm font-medium mb-2 block">步骤 2：选择样品名称</label>
+              <Select value={selectedSample} onValueChange={setSelectedSample}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="请选择样品名称" /></SelectTrigger>
+                <SelectContent>
+                  {samples.map((s) => (
+                    <SelectItem key={s.sample_name} value={s.sample_name}>
+                      {s.sample_name}{s.material_spec ? ` (${s.material_spec})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* 步骤 3：检测项预览 */}
+          {step >= 3 && configGroups.length > 0 && (
+            <div className="mb-4">
+              <label className="text-sm font-medium mb-2 block">
+                步骤 3：检测项预览（共 {configGroups.length} 组，{configGroups.reduce((sum, g) => sum + g.items.length, 0)} 个检测项）
+              </label>
+              <div className="border rounded-lg p-3 bg-muted/30 space-y-2 max-h-[200px] overflow-auto">
+                {configGroups.map((g) => (
+                  <div key={g.group_key} className="text-xs">
+                    <div className="font-semibold text-primary mb-1">{g.group_key}</div>
+                    <div className="grid grid-cols-2 gap-1 pl-3">
+                      {g.items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-1">
+                          <CheckCircle className="size-3 text-green-500" />
+                          <span>{item.test_item}</span>
+                          {item.judgment_indicator && (
+                            <span className="text-muted-foreground">({item.judgment_indicator})</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {g.image_description && (
+                      <div className="mt-1 mb-1 pl-3 flex items-start gap-1 text-amber-700 bg-amber-50 rounded px-2 py-1">
+                        <Info className="size-3 mt-0.5 shrink-0" />
+                        <span className="whitespace-pre-wrap break-all">{g.image_description}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 步骤 4：填写委托编号 */}
+          {step >= 3 && (
+            <div className="mb-4">
+              <label className="text-sm font-medium mb-2 block">步骤 4：填写委托编号（选填）</label>
+              <Input
+                value={entrustNo}
+                onChange={(e) => setEntrustNo(e.target.value)}
+                placeholder="委托编号（选填）"
+                className="w-full"
+              />
+            </div>
+          )}
+
+          {/* 步骤 5：上传照片 */}
+          {step >= 3 && (
+            <div>
+              <label className="text-sm font-medium mb-2 block">步骤 5：上传照片</label>
+              <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 cursor-pointer hover:border-primary transition-colors">
+                <Upload className="size-10 text-muted-foreground mb-2" />
+                <span className="text-sm font-medium">点击或拖拽照片到此区域上传</span>
+                <span className="text-xs text-muted-foreground mt-1">
+                  系统将按 {selectedDevice} 配置自动提取 {configGroups.reduce((sum, g) => sum + g.items.length, 0)} 个检测项
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    Array.from(e.target.files || []).forEach(handleConfigUpload);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* 通用上传（向后兼容） */}
+          <div className="mt-4 pt-4 border-t">
+            <details>
+              <summary className="text-xs text-muted-foreground cursor-pointer">通用上传（不按配置提取，仅存原始 OCR 结果）</summary>
+              <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-4 cursor-pointer hover:border-primary transition-colors mt-2">
+                <Upload className="size-6 text-muted-foreground mb-1" />
+                <span className="text-xs">点击上传（通用模式）</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    Array.from(e.target.files || []).forEach(handleUpload);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </details>
+          </div>
         </CardContent>
       </Card>
 
@@ -358,11 +576,78 @@ export default function PhotoOCR() {
       {/* Results table */}
       <Card>
         <CardContent className="pt-6">
-          <h3 className="font-semibold mb-4">OCR识别结果</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold">OCR识别结果</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">视图：</span>
+              <Button
+                size="sm"
+                variant={viewMode === "group" ? "default" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => setViewMode("group")}
+              >
+                按组展示
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "flat" ? "default" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => setViewMode("flat")}
+              >
+                扁平展示
+              </Button>
+            </div>
+          </div>
           {filteredPhotos.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               {photos.length === 0 ? "暂无识别结果，请上传试验数据照片" : "没有匹配的记录"}
             </div>
+          ) : viewMode === "group" ? (
+            /* 按组展示 */
+            (() => {
+              const groupedPhotos: Record<string, ArchivedPhoto[]> = {};
+              const ungrouped: ArchivedPhoto[] = [];
+              filteredPhotos.forEach((p) => {
+                if (p.group_id) {
+                  groupedPhotos[p.group_id] = groupedPhotos[p.group_id] || [];
+                  groupedPhotos[p.group_id].push(p);
+                } else {
+                  ungrouped.push(p);
+                }
+              });
+              return (
+                <div>
+                  {Object.entries(groupedPhotos).map(([gid, groupPhotos]) => (
+                    <GroupResultCard
+                      key={gid}
+                      groupId={gid}
+                      photos={groupPhotos}
+                      onUpdate={async (id, patch) => { await updatePhotoMeta(id, patch); fetchPhotos(); }}
+                      onDelete={async (id) => { await deletePhoto(id); fetchPhotos(); }}
+                      onPreview={(photo) => { setPreviewItem(photo); setPreviewVisible(true); }}
+                    />
+                  ))}
+                  {ungrouped.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="px-4 py-2 bg-muted/50 text-sm font-semibold">未分组记录（通用上传）</div>
+                      <div className="p-2">
+                        {ungrouped.map((p) => (
+                          <div key={p.id} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-muted/30 rounded">
+                            <span className="truncate flex-1">{p.original_name}</span>
+                            <span className="text-muted-foreground">{p.test_item || "-"}</span>
+                            <span className="font-semibold" style={{ color: p.status === "已识别" ? "#52c41a" : p.status === "待确认" ? "#faad14" : "#f5222d" }}>{p.recognized_value || "-"}</span>
+                            <Badge variant={p.judgment === "合格" ? "default" : p.judgment === "不合格" ? "destructive" : "secondary"}>{p.judgment}</Badge>
+                            <Button variant="link" size="sm" className="h-6 px-1 text-xs" onClick={() => { setPreviewItem(p); setPreviewVisible(true); }}>
+                              <Eye className="size-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()
           ) : (
             <Table>
               <TableHeader>
@@ -502,6 +787,21 @@ export default function PhotoOCR() {
           </DialogHeader>
           {previewItem && (
             <div className="space-y-4">
+              {/* 识别失败警告 */}
+              {(!previewItem.recognized_value || !!previewItem.error) && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                  <AlertTriangle className="size-4 mt-0.5 text-amber-500 shrink-0" />
+                  <div>
+                    <div className="font-medium text-amber-800">
+                      {previewItem.error || "未识别到有效数据"}
+                    </div>
+                    <div className="text-xs text-amber-600 mt-1">
+                      建议重新上传更清晰的照片，或点击下方“手动填写”按钮人工录入数据
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">文件名：</span>{previewItem.original_name}</div>
                 <div><span className="text-muted-foreground">样品名称：</span>{previewItem.sample_name || "-"}</div>
@@ -554,13 +854,40 @@ export default function PhotoOCR() {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-2 border-t pt-3">
-                <a href={getPhotoDownloadUrl(previewItem.id)} download={previewItem.original_name}>
-                  <Button variant="outline" size="sm">
-                    <Download className="size-3.5 mr-1" /> 下载原图
-                  </Button>
-                </a>
+              <div className="flex justify-between items-center border-t pt-3">
+                <div>
+                  {(!previewItem.recognized_value || !!previewItem.error) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                      onClick={() => setDetailManualEdit(true)}
+                    >
+                      <Pencil className="size-3.5 mr-1" /> 手动填写
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <a href={getPhotoDownloadUrl(previewItem.id)} download={previewItem.original_name}>
+                    <Button variant="outline" size="sm">
+                      <Download className="size-3.5 mr-1" /> 下载原图
+                    </Button>
+                  </a>
+                </div>
               </div>
+
+              {/* 手动填写对话框 */}
+              {detailManualEdit && previewItem && (
+                <ManualEditDialog
+                  photo={previewItem}
+                  open={detailManualEdit}
+                  onOpenChange={(open) => {
+                    setDetailManualEdit(open);
+                    if (!open) fetchPhotos(); // 关闭时刷新列表
+                  }}
+                  onSave={async (id, patch) => { await updatePhotoMeta(id, patch); setPreviewItem(null); fetchPhotos(); toast.success("已保存"); }}
+                />
+              )}
             </div>
           )}
         </DialogContent>

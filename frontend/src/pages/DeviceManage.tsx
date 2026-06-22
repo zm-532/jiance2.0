@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Wrench, CheckCircle, PauseCircle, AlertTriangle, History, XCircle, Clock,
-  ArrowUp, ArrowDown, ArrowUpDown,
+  ArrowUp, ArrowDown, ArrowUpDown, BellRing, Activity,
 } from "lucide-react";
 import ReactECharts from "echarts-for-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { devices, type Device } from "@/mock/data";
+import { devices, ocrRules, type Device } from "@/mock/data";
+import { fetchDeviceIdleWarning, type DeviceIdleWarningResponse } from "@/services/ocr";
 import { cn } from "@/lib/utils";
 
 const calibStatusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
@@ -60,6 +61,44 @@ export default function DeviceManage() {
   const [pageSize, setPageSize] = useState(15);
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // 设备闲置预警
+  const [idleWarning, setIdleWarning] = useState<DeviceIdleWarningResponse | null>(null);
+  const [idleLoading, setIdleLoading] = useState(false);
+  const [idleDays, setIdleDays] = useState(7);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIdleLoading(true);
+    fetchDeviceIdleWarning(idleDays)
+      .then((data) => { if (!cancelled) setIdleWarning(data); })
+      .catch(() => {}) 
+      .finally(() => { if (!cancelled) setIdleLoading(false); });
+    return () => { cancelled = true; };
+  }, [idleDays]);
+
+  // 根据 OCR 规则映射：哪些设备本周有使用（有照片上传）
+  const { idleDevices, activeDeviceNames, weekLabel } = useMemo(() => {
+    if (!idleWarning) {
+      return { idleDevices: [] as Device[], activeDeviceNames: new Set<string>(), weekLabel: "" };
+    }
+    // 从 active_rules 映射到设备名称
+    const ruleToEquipment = new Map(ocrRules.map((r) => [r.id, r.equipment]));
+    const activeNames = new Set<string>();
+    idleWarning.active_rules.forEach((rule) => {
+      const eq = ruleToEquipment.get(rule.rule_id);
+      if (eq) activeNames.add(eq);
+    });
+    // 正常设备中（排除未到/未到货）哪些没有活动
+    const mainDevs = devices.filter((d) => d.status !== "未到");
+    const idle = mainDevs.filter((d) => !activeNames.has(d.name));
+    // 统计周期标签
+    const since = new Date(idleWarning.since);
+    const now = new Date(idleWarning.now);
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const label = `${fmt(since)} 至 ${fmt(now)}`;
+    return { idleDevices: idle, activeDeviceNames: activeNames, weekLabel: label };
+  }, [idleWarning]);
 
   const mainDevices = devices.filter((d) => d.status !== "未到");
   const filteredDevices = mainDevices.filter((d) => {
@@ -137,7 +176,7 @@ export default function DeviceManage() {
     grid: { left: "3%", right: "4%", bottom: "3%", top: "10%", containLabel: true },
     xAxis: {
       type: "category" as const, data: topTestDevices.map((d) => d.name),
-      axisLabel: { rotate: 30, fontSize: 11 }, axisLine: { lineStyle: { color: "#e8e8e8" } },
+      axisLabel: { rotate: 30, fontSize: 11, color: "#475569" }, axisLine: { lineStyle: { color: "#e8e8e8" } },
     },
     yAxis: { type: "value" as const, name: "检测次数", splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
     series: [{
@@ -169,6 +208,81 @@ export default function DeviceManage() {
         <h2 className="text-xl font-bold tracking-tight">设备管理</h2>
         <p className="text-muted-foreground mt-1 text-sm">实验室检测设备台账管理 — 数据来自《实验室检测设备台账2025》</p>
       </div>
+
+      {/* 设备闲置预警 */}
+      <Card className={cn("mb-6 border-l-4", idleDevices.length > 0 ? "border-l-amber-500" : "border-l-green-500")}>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BellRing className={cn("size-5", idleDevices.length > 0 ? "text-amber-500" : "text-green-500")} />
+              <CardTitle className="text-base">设备闲置预警</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={String(idleDays)} onValueChange={(v) => setIdleDays(Number(v))}>
+                <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">近 7 天</SelectItem>
+                  <SelectItem value="14">近 14 天</SelectItem>
+                  <SelectItem value="30">近 30 天</SelectItem>
+                </SelectContent>
+              </Select>
+              {weekLabel && (
+                <span className="text-xs text-muted-foreground">统计周期：{weekLabel}</span>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {idleLoading ? (
+            <div className="text-sm text-muted-foreground py-3">加载闲置数据中...</div>
+          ) : idleWarning === null ? (
+            <div className="text-sm text-muted-foreground py-3">暂无预警数据（后端服务未连接）</div>
+          ) : (
+            <>
+              <div className="flex items-center gap-4 mb-3 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <Activity className="size-4 text-green-500" />
+                  活跃设备：<strong className="text-green-600">{activeDeviceNames.size}</strong> 台
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="size-4 text-amber-500" />
+                  闲置设备：<strong className="text-amber-600">{idleDevices.length}</strong> 台
+                </span>
+                <span className="text-muted-foreground">
+                  本期上传图片：{idleWarning.total_photos} 张
+                </span>
+              </div>
+              {idleDevices.length === 0 ? (
+                <div className="flex items-center gap-2 text-sm text-green-600 py-2">
+                  <CheckCircle className="size-4" />
+                  所有设备近期均有使用记录，无闲置预警。
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">以下设备在统计周期内无检测数据上传，请安排检查：</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {idleDevices.map((d) => (
+                      <Tooltip key={d.id}>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs cursor-default hover:bg-amber-100 transition-colors">
+                            <AlertTriangle className="size-3 text-amber-500 flex-shrink-0" />
+                            <span className="truncate font-medium text-amber-900">{d.name}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold">{d.name}</p>
+                          <p className="text-muted-foreground text-xs">{d.id} | {d.location || "未标注位置"}</p>
+                          <p className="text-muted-foreground text-xs">型号：{d.model || "-"} | 联系人：{d.contact || "-"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid grid-cols-6 gap-3 mb-6">
