@@ -520,7 +520,7 @@ async def generate_report_endpoint(
 async def list_report_templates():
     """返回可用的报告模板列表。"""
     return [
-        {"id": "R001", "name": "检测报告模版-1", "file": "检测报告模版-1.docx", "category": "金属屏体"},
-        {"id": "R002", "name": "检测报告模版-2", "file": "检测报告模版-2.docx", "category": "亚克力"},
-        {"id": "R003", "name": "检测报告模版-3", "file": "检测报告模版-3.docx", "category": "PC板"},
+        {"id": "R001", "name": "检测报告模版-1", "file": "检测报告模版-1.docx", "category": "标准报告（含声学频率数据）"},
+        {"id": "R002", "name": "检测报告模版-2", "file": "检测报告模版-2.docx", "category": "详细报告（含声学数据+试验照片）"},
+        {"id": "R003", "name": "检测报告模版-3", "file": "检测报告模版-3.docx", "category": "简要报告（仅结果汇总）"},
     ]
