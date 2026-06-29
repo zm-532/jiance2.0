@@ -467,7 +467,7 @@
       "description": "识别001~005列对应拉伸强度行的值，取平均值",
       "column_headers": ["001", "002", "003", "004", "005"],
       "row_key": "拉伸强度",
-      "row_alternatives": ["拉伸强度", "拉伸强度MPa"],
+      "row_alternatives": ["拉伸强度", "拉伸强度MPa", "断裂拉伸应变", "最大力", "抗拉"],
       "aggregation": "average"
     },
     "aggregation_method": "average",
@@ -493,7 +493,7 @@
       "description": "识别001~005列对应断裂伸长率行的值，取平均值",
       "column_headers": ["001", "002", "003", "004", "005"],
       "row_key": "断裂伸长率",
-      "row_alternatives": ["断裂伸长率", "伸长率"],
+      "row_alternatives": ["断裂伸长率", "伸长率", "断裂拉伸应变"],
       "aggregation": "average"
     },
     "aggregation_method": "average",
@@ -545,7 +545,7 @@
       "description": "识别表格中1#/2#/3#行对应透光率列的值",
       "row_headers": ["1#", "2#", "3#"],
       "column_key": "透光率",
-      "column_alternatives": ["透光率", "透光率%", "透光率（%）"],
+      "column_alternatives": ["透光率", "透光率%", "透光率（%）", "T"],
       "value_pattern": "(\\d+\\.?\\d*)",
       "unit": "%"
     },
@@ -624,7 +624,7 @@
       "description": "识别表格中1#/2#/3#行对应雾度列的值",
       "row_headers": ["1#", "2#", "3#"],
       "column_key": "雾度",
-      "column_alternatives": ["雾度", "雾度%", "雾度（%）"],
+      "column_alternatives": ["雾度", "雾度%", "雾度（%）", "H"],
       "value_pattern": "(\\d+\\.?\\d*)",
       "unit": "%"
     },
@@ -834,7 +834,7 @@
       "type": "single_value",
       "description": "识别燃烧热值",
       "value_key": "燃烧热值",
-      "value_alternatives": ["热值", "燃烧热"],
+      "value_alternatives": ["热值", "燃烧热", "系统热容量", "热容量"],
       "value_pattern": "(\\d+\\.?\\d*)",
       "unit": "MJ/kg"
     },

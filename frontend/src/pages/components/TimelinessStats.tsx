@@ -1,14 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactECharts from "echarts-for-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { timelinessData } from "@/mock/data";
+import { fetchTimelinessStats, type TimelinessRecord } from "@/services/stats";
 
 export default function TimelinessStats() {
+  const [timelinessData, setTimelinessData] = useState<TimelinessRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [testItemFilter, setTestItemFilter] = useState<string>("all");
+
+  useEffect(() => {
+    fetchTimelinessStats()
+      .then((data) => setTimelinessData(data))
+      .catch((err) => console.error("获取时效性统计失败:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   const categories = [...new Set(timelinessData.map((d) => d.category))];
 
@@ -48,10 +57,14 @@ export default function TimelinessStats() {
     }],
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center py-20 text-muted-foreground">加载中...</div>;
+  }
+
   return (
     <div>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm text-blue-800">
-        <strong>时效性说明：</strong>当前只对具备收样/检测日期且不涉及老化扣除规则的记录计算工作日时效；周六/周日已剔除，当天收样当天完成计为1天。法定节假日表和老化时长规则缺失时显示”缺数据”。
+        <strong>时效性说明：</strong>当前只对具备收样/检测日期且不涉及老化扣除规则的记录计算工作日时效；周六/周日已剔除，当天收样当天完成计为1天。法定节假日表和老化时长规则缺失时显示"缺数据"。
       </div>
 
       <div className="grid grid-cols-5 gap-4 mb-6">

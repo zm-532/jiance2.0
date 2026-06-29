@@ -14,8 +14,8 @@ from app.models.photo import Photo
 logger = logging.getLogger(__name__)
 
 PADDLEOCR_JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
-MAX_POLLS = 60
-POLL_INTERVAL = 3.0
+MAX_POLLS = 100
+POLL_INTERVAL = 2.0
 
 
 def _parse_ocr_result(jsonl_text: str) -> dict:
@@ -44,8 +44,61 @@ def _parse_ocr_result(jsonl_text: str) -> dict:
     return {"pages": pages, "raw_text": raw_text.strip(), "tables": tables}
 
 
+def compress_image(file_bytes: bytes, filename: str, content_type: str, max_size: int = 5 * 1024 * 1024) -> tuple[bytes, str, str]:
+    """压缩超过 max_size 的图片，返回 (bytes, filename, content_type)。
+
+    使用 Pillow 按比例缩小图片直到小于 max_size，重新编码为 JPEG。
+    如果图片本身不大或 Pillow 不可用，返回原始数据。
+    """
+    if len(file_bytes) <= max_size:
+        return file_bytes, filename, content_type
+
+    try:
+        from PIL import Image
+        import io
+
+        img = Image.open(io.BytesIO(file_bytes))
+        # 转为 RGB（去掉 alpha 通道）
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+
+        # 逐步缩小尺寸
+        quality = 85
+        output = io.BytesIO()
+        img.save(output, format="JPEG", quality=quality)
+        while output.tell() > max_size and quality > 30:
+            output.seek(0)
+            output.truncate()
+            quality -= 10
+            img.save(output, format="JPEG", quality=quality)
+
+        if output.tell() > max_size:
+            # 还是不够小，缩小尺寸
+            ratio = (max_size / output.tell()) ** 0.5
+            new_size = (int(img.width * ratio), int(img.height * ratio))
+            img = img.resize(new_size, Image.LANCZOS)
+            output.seek(0)
+            output.truncate()
+            img.save(output, format="JPEG", quality=60)
+
+        compressed = output.getvalue()
+        logger.info(f"图片压缩: {len(file_bytes)} -> {len(compressed)} bytes (quality={quality})")
+        new_name = filename.rsplit(".", 1)[0] + ".jpg"
+        return compressed, new_name, "image/jpeg"
+
+    except ImportError:
+        logger.warning("Pillow 未安装，跳过图片压缩")
+        return file_bytes, filename, content_type
+    except Exception as e:
+        logger.warning(f"图片压缩失败: {e}，使用原始图片")
+        return file_bytes, filename, content_type
+
+
 async def submit_ocr_job(file_bytes: bytes, filename: str, content_type: str) -> str | None:
     """Submit OCR job to PaddleOCR and return the job ID."""
+    # 压缩大图片
+    file_bytes, filename, content_type = compress_image(file_bytes, filename, content_type)
+
     async with httpx.AsyncClient(timeout=60) as client:
         files = {"file": (filename, file_bytes, content_type)}
         data = {

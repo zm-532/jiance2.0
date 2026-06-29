@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { devices, ocrRules, type Device } from "@/mock/data";
+import { fetchDevices, fetchOcrRules, type Device, type OCRRule } from "@/services/stats";
 import { fetchDeviceIdleWarning, type DeviceIdleWarningResponse } from "@/services/ocr";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +55,10 @@ type SortKey = "nextCalibrationDate" | "totalTests" | null;
 type SortDir = "asc" | "desc";
 
 export default function DeviceManage() {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [ocrRules, setOcrRules] = useState<OCRRule[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [calibFilter, setCalibFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -66,6 +70,22 @@ export default function DeviceManage() {
   const [idleWarning, setIdleWarning] = useState<DeviceIdleWarningResponse | null>(null);
   const [idleLoading, setIdleLoading] = useState(false);
   const [idleDays, setIdleDays] = useState(7);
+
+  // 组件挂载时并行获取设备和OCR规则
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([fetchDevices(), fetchOcrRules()])
+      .then(([devs, rules]) => {
+        if (!cancelled) {
+          setDevices(devs);
+          setOcrRules(rules);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +118,7 @@ export default function DeviceManage() {
     const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const label = `${fmt(since)} 至 ${fmt(now)}`;
     return { idleDevices: idle, activeDeviceNames: activeNames, weekLabel: label };
-  }, [idleWarning]);
+  }, [idleWarning, devices, ocrRules]);
 
   const mainDevices = devices.filter((d) => d.status !== "未到");
   const filteredDevices = mainDevices.filter((d) => {
@@ -201,6 +221,14 @@ export default function DeviceManage() {
       data: locationData.map(([name, value]) => ({ name, value })),
     }],
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-muted-foreground text-sm">加载中...</p>
+      </div>
+    );
+  }
 
   return (
     <div>

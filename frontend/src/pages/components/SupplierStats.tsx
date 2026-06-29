@@ -1,12 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactECharts from "echarts-for-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supplierStats, materialStats } from "@/mock/data";
+import { fetchSupplierStats, fetchMaterialStats, type SupplierStat, type MaterialStat } from "@/services/stats";
 
 export default function SupplierStats() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [supplierStats, setSupplierStats] = useState<SupplierStat[]>([]);
+  const [materialStats, setMaterialStats] = useState<MaterialStat[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([fetchSupplierStats(), fetchMaterialStats()])
+      .then(([suppliers, materials]) => {
+        setSupplierStats(suppliers);
+        setMaterialStats(materials);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredSuppliers = selectedCategory
     ? supplierStats.filter((s) => s.sampleName === selectedCategory)
@@ -43,6 +56,10 @@ export default function SupplierStats() {
       },
     }],
   };
+
+  if (loading) {
+    return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
+  }
 
   return (
     <div>

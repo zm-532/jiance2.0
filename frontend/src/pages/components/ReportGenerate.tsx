@@ -6,7 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { reportTemplates, experimentRecords, capabilityItems } from "@/mock/data";
+import {
+  fetchReportTemplates,
+  fetchExperimentRecords,
+  fetchCapabilityItems,
+  type ReportTemplate,
+  type ExperimentRecord,
+  type CapabilityItem,
+} from "@/services/stats";
 import { listPhotos, getPhotoDownloadUrl, judgeGroup, generateReport as generateReportApi, type ArchivedPhoto } from "@/services/ocr";
 import { toast } from "sonner";
 
@@ -16,6 +23,28 @@ export default function ReportGenerate() {
   const [selectedRecord, setSelectedRecord] = useState<string>("");
   const [reportPhotos, setReportPhotos] = useState<ArchivedPhoto[]>([]);
   const [generating, setGenerating] = useState(false);
+
+  const [templates, setTemplates] = useState<ReportTemplate[]>([]);
+  const [records, setRecords] = useState<ExperimentRecord[]>([]);
+  const [capabilities, setCapabilities] = useState<CapabilityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchReportTemplates(),
+      fetchExperimentRecords({ page: 1, page_size: 9999 }),
+      fetchCapabilityItems(),
+    ])
+      .then(([t, r, c]) => {
+        setTemplates(t);
+        setRecords(r.records);
+        setCapabilities(c);
+      })
+      .catch((err) => {
+        toast.error(err instanceof Error ? err.message : "加载数据失败");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (selectedTemplate) {
@@ -40,17 +69,13 @@ export default function ReportGenerate() {
     return { groups, ungrouped };
   }, [reportPhotos]);
 
-  const template = reportTemplates.find((t) => t.id === selectedTemplate);
+  const template = templates.find((t) => t.id === selectedTemplate);
 
-  const relatedRecords = selectedTemplate
-    ? experimentRecords
-    : [];
+  const relatedRecords = selectedTemplate ? records : [];
 
-  const relatedCapabilities = selectedTemplate
-    ? capabilityItems
-    : [];
+  const relatedCapabilities = selectedTemplate ? capabilities : [];
 
-  const record = experimentRecords.find((r) => r.id === selectedRecord);
+  const record = records.find((r) => r.id === selectedRecord);
 
   const handleGenerateWord = async () => {
     if (!selectedTemplate) return;
@@ -74,6 +99,14 @@ export default function ReportGenerate() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Template selection */}
@@ -86,17 +119,15 @@ export default function ReportGenerate() {
                 <TableHead>模板名称</TableHead>
                 <TableHead className="w-[200px]">报告类型</TableHead>
                 <TableHead className="w-[180px]">模板文件</TableHead>
-                <TableHead className="w-[80px] text-center">版本</TableHead>
                 <TableHead className="w-[200px]">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reportTemplates.map((t) => (
+              {templates.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-medium"><FileText className="size-4 inline mr-2 text-primary" />{t.name}</TableCell>
-                  <TableCell>{t.reportType}</TableCell>
+                  <TableCell>{t.category}</TableCell>
                   <TableCell className="truncate max-w-[180px]">{t.file}</TableCell>
-                  <TableCell className="text-center">{t.version}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => setSelectedTemplate(t.id)}>使用此模板</Button>
@@ -386,7 +417,7 @@ export default function ReportGenerate() {
                 </div>
               )}
               <div className="text-center text-xs text-muted-foreground mt-4">
-                此报告由系统自动生成 | 宜塔报告模板 {template?.version}
+                此报告由系统自动生成 | 宜塔报告模板
                 <br />
                 当前缺少 Word 模板字段映射和后端导出服务，暂不生成最终报告文件。
               </div>

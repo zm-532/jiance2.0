@@ -4,7 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { monthlyTestVolume, manufacturers, experimentRecords } from "@/mock/data";
+import {
+  fetchVolumeStats,
+  fetchVolumeTrend,
+  fetchVolumeBySupplier,
+  fetchManufacturers,
+  type VolumeData,
+  type MonthlyVolume,
+  type VolumeBySupplierData,
+} from "@/services/stats";
 
 type TimeDimension = "year" | "quarter" | "month" | "week" | "custom";
 
@@ -12,19 +20,6 @@ const COLORS = [
   "#1677ff", "#52c41a", "#faad14", "#ff4d4f", "#722ed1",
   "#13c2c2", "#eb2f96", "#fa8c16", "#2f54eb", "#a0d911",
 ];
-
-function getPeriod(dateStr: string, dim: TimeDimension): string {
-  if (!dateStr) return "";
-  const [y, m] = dateStr.split("-");
-  if (dim === "year") return y;
-  if (dim === "quarter") return `${y}Q${Math.ceil(parseInt(m) / 3)}`;
-  if (dim === "month") return `${y}-${m}`;
-  // week: use ISO week approximation
-  const d = new Date(dateStr);
-  const oneJan = new Date(d.getFullYear(), 0, 1);
-  const week = Math.ceil(((d.getTime() - oneJan.getTime()) / 86400000 + oneJan.getDay() + 1) / 7);
-  return `${y}W${String(week).padStart(2, "0")}`;
-}
 
 function shortName(name: string, max = 12): string {
   return name.length > max ? name.slice(0, max) + "…" : name;
@@ -38,6 +33,13 @@ export default function VolumeStats() {
   const [customEnd, setCustomEnd] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // ---- API state ----
+  const [volumeData, setVolumeData] = useState<VolumeData[]>([]);
+  const [trendData, setTrendData] = useState<MonthlyVolume[]>([]);
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [comparisonData, setComparisonData] = useState<VolumeBySupplierData | null>(null);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -49,77 +51,67 @@ export default function VolumeStats() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Load manufacturers and trend data on mount
+  useEffect(() => {
+    fetchManufacturers()
+      .then(setManufacturers)
+      .catch((err) => console.error("获取厂家列表失败:", err));
+    fetchVolumeTrend()
+      .then(setTrendData)
+      .catch((err) => console.error("获取检测趋势失败:", err));
+  }, []);
+
+  // Fetch volume stats when dimension / start_month / end_month changes
+  useEffect(() => {
+    setLoading(true);
+    const params: { dimension?: string; start_month?: string; end_month?: string } = {};
+    if (dimension === "custom") {
+      params.dimension = "month";
+      if (customStart) params.start_month = customStart;
+      if (customEnd) params.end_month = customEnd;
+    } else {
+      params.dimension = dimension;
+    }
+    fetchVolumeStats(params)
+      .then(setVolumeData)
+      .catch((err) => {
+        console.error("获取检测量统计失败:", err);
+        setVolumeData([]);
+      })
+      .finally(() => setLoading(false));
+  }, [dimension, customStart, customEnd]);
+
+  // Fetch supplier comparison when 2+ suppliers selected
+  useEffect(() => {
+    if (selectedSuppliers.length < 2) {
+      setComparisonData(null);
+      return;
+    }
+    const dim = dimension === "custom" ? "month" : dimension;
+    fetchVolumeBySupplier(selectedSuppliers, dim)
+      .then(setComparisonData)
+      .catch((err) => {
+        console.error("获取供应商对比失败:", err);
+        setComparisonData(null);
+      });
+  }, [selectedSuppliers, dimension]);
+
   const toggleSupplier = (m: string) => {
     setSelectedSuppliers((prev) =>
       prev.includes(m) ? prev.filter((s) => s !== m) : prev.length < 10 ? [...prev, m] : prev
     );
   };
 
-  // Aggregate chart data (overall)
-  const getChartData = () => {
-    let data = [...monthlyTestVolume];
-    if (dimension === "custom") {
-      return data
-        .filter((d: any) => {
-          if (customStart && d.month < customStart) return false;
-          if (customEnd && d.month > customEnd) return false;
-          return true;
-        })
-        .map((d: any) => ({ label: d.month, total: d.total, qualified: d.qualified, unqualified: d.unqualified }));
-    }
-    if (dimension === "quarter") {
-      const quarters: Record<string, { total: number; qualified: number; unqualified: number }> = {};
-      data.forEach((d: any) => {
-        const month = parseInt(d.month.split("-")[1]);
-        const q = Math.ceil(month / 3);
-        const key = `${d.month.split("-")[0]}Q${q}`;
-        if (!quarters[key]) quarters[key] = { total: 0, qualified: 0, unqualified: 0 };
-        quarters[key].total += d.total; quarters[key].qualified += d.qualified; quarters[key].unqualified += d.unqualified;
-      });
-      return Object.entries(quarters).map(([k, v]) => ({ label: k, ...v }));
-    }
-    if (dimension === "year") {
-      const years: Record<string, { total: number; qualified: number; unqualified: number }> = {};
-      data.forEach((d: any) => {
-        const year = d.month.split("-")[0];
-        if (!years[year]) years[year] = { total: 0, qualified: 0, unqualified: 0 };
-        years[year].total += d.total; years[year].qualified += d.qualified; years[year].unqualified += d.unqualified;
-      });
-      return Object.entries(years).map(([k, v]) => ({ label: k, ...v }));
-    }
-    return data.map((d: any) => ({ label: d.month, total: d.total, qualified: d.qualified, unqualified: d.unqualified }));
+  // Aggregate chart data (overall) — uses volumeData from API
+  const getChartData = (): VolumeData[] => {
+    return volumeData;
   };
 
   const chartData = getChartData();
   const totalTests = chartData.reduce((s, d) => s + d.total, 0);
   const totalQualified = chartData.reduce((s, d) => s + d.qualified, 0);
 
-  // ---- Supplier comparison data (from experimentRecords) ----
-  const comparisonData = useMemo(() => {
-    if (selectedSuppliers.length < 2) return null;
-
-    // Filter records by selected suppliers
-    const filtered = experimentRecords.filter((r) => selectedSuppliers.includes(r.manufacturer));
-
-    // Group by period and supplier
-    const periodSet = new Set<string>();
-    const grouped: Record<string, Record<string, { total: number; qualified: number; unqualified: number }>> = {};
-
-    for (const r of filtered) {
-      const period = getPeriod(r.date, dimension);
-      if (!period) continue;
-      periodSet.add(period);
-      if (!grouped[period]) grouped[period] = {};
-      if (!grouped[period][r.manufacturer]) grouped[period][r.manufacturer] = { total: 0, qualified: 0, unqualified: 0 };
-      grouped[period][r.manufacturer].total++;
-      if (r.judgment === "合格") grouped[period][r.manufacturer].qualified++;
-      else if (r.judgment === "不合格") grouped[period][r.manufacturer].unqualified++;
-    }
-
-    const periods = [...periodSet].sort();
-    return { periods, grouped, suppliers: selectedSuppliers };
-  }, [selectedSuppliers, dimension]);
-
+  // ---- Supplier comparison chart option ----
   const comparisonOption = useMemo(() => {
     if (!comparisonData) return null;
     const { periods, grouped, suppliers } = comparisonData;
@@ -181,20 +173,20 @@ export default function VolumeStats() {
     tooltip: { trigger: "axis" as const },
     legend: { data: ["检测量", "合格率"], bottom: 0, icon: "circle", itemWidth: 10, itemHeight: 10 },
     grid: { left: "3%", right: "5%", bottom: "10%", top: "5%", containLabel: true },
-    xAxis: { type: "category" as const, data: monthlyTestVolume.map((d: any) => d.month), axisLabel: { rotate: 30 } },
+    xAxis: { type: "category" as const, data: trendData.map((d) => d.month), axisLabel: { rotate: 30 } },
     yAxis: [
       { type: "value" as const, name: "检测量", splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
       { type: "value" as const, name: "合格率(%)", max: 100, splitLine: { show: false } },
     ],
     series: [
       {
-        name: "检测量", type: "bar" as const, data: monthlyTestVolume.map((d: any) => d.total),
+        name: "检测量", type: "bar" as const, data: trendData.map((d) => d.total),
         itemStyle: { color: { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#4096ff" }, { offset: 1, color: "#0958d9" }] }, borderRadius: [4, 4, 0, 0] },
         barWidth: 20,
       },
       {
         name: "合格率", type: "line" as const, yAxisIndex: 1, smooth: 0.4, symbol: "circle", symbolSize: 8,
-        data: monthlyTestVolume.map((d: any) => +((d.qualified / d.total) * 100).toFixed(1)),
+        data: trendData.map((d) => (d.total > 0 ? +((d.qualified / d.total) * 100).toFixed(1) : 0)),
         itemStyle: { color: "#52c41a" }, lineStyle: { width: 3 },
       },
     ],
@@ -271,7 +263,7 @@ export default function VolumeStats() {
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-2">检测量</div>
-          <div className="text-2xl font-bold">{totalTests} 批次</div>
+          <div className="text-2xl font-bold">{loading ? "加载中…" : `${totalTests} 批次`}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-2">合格率</div>

@@ -63,6 +63,13 @@ class SingleValueExtractor(BaseExtractor):
                     except ValueError:
                         pass
 
+            # 额外回退：使用 _extract_value_from_text 方法从原始文本提取
+            if single_value is None and raw_text:
+                single_value = self._extract_value_from_text(
+                    raw_text, [value_key], value_alternatives,
+                    value_pattern.replace(r"(", "").replace(r")", "") if value_pattern else r"-?\d+\.?\d*",
+                )
+
             result["values"] = [single_value] if single_value is not None else []
             result["result"] = single_value
 

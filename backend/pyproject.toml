@@ -12,4 +12,5 @@ dependencies = [
     "asyncmy==0.2.10",
     "alembic==1.13.3",
     "cryptography>=49.0.0",
+    "Pillow>=10.0.0",
 ]

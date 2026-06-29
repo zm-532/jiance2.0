@@ -29,8 +29,7 @@ class TableRowColumnExtractor(BaseExtractor):
             aggregation_method = config.get("aggregation_method", "average")
 
             if not tables:
-                logger.warning("TableRowColumnExtractor: 无表格数据")
-                return result
+                logger.warning("TableRowColumnExtractor: 无表格数据，将尝试从 raw_text 提取")
 
             # 在所有表格中查找包含目标列的表
             values = []
@@ -58,6 +57,16 @@ class TableRowColumnExtractor(BaseExtractor):
 
                 if values:
                     break  # 找到数据即停止
+
+            # 无表格或表格中未找到时，尝试从 raw_text 提取
+            if not values and raw_text:
+                val = self._extract_value_from_text(
+                    raw_text, [column_key],
+                    list(column_alternatives or []) + list(row_headers or []),
+                    value_pattern.replace(r"(", "").replace(r")", ""),
+                )
+                if val is not None:
+                    values = [val]
 
             result["values"] = values
             result["result"] = aggregate(values, aggregation_method)

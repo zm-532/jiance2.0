@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Wrench, CheckCircle, FlaskConical, TrendingUp, Users, Shield, Clock, RefreshCw, PauseCircle,
 } from "lucide-react";
@@ -8,10 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  devices, materialStats, testItemDistribution, monthlyTestVolume,
-  pipeline, photoCount,
-} from "@/mock/data";
+import { fetchDashboardStats, fetchDevices, type DashboardData, type Device } from "@/services/stats";
 
 function StatCard({ title, value, suffix, icon: Icon, color }: {
   title: string; value: number; suffix: string; icon: React.ElementType; color: string;
@@ -37,18 +34,48 @@ function StatCard({ title, value, suffix, icon: Icon, color }: {
 
 export default function Dashboard() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const mainDevices = devices.filter((d) => d.status !== "未到");
-  const totalDevices = mainDevices.length;
-  const calibNormal = mainDevices.filter((d) => d.calibrationStatus === "正常").length;
-  const calibSoon = mainDevices.filter((d) => d.calibrationStatus === "即将到期").length;
-  const calibExpired = mainDevices.filter((d) => d.calibrationStatus === "已过期").length;
+  const [dashData, setDashData] = useState<DashboardData | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const activeDevices = mainDevices.filter((d) => d.status === "正常").length;
-  const idleDevices = mainDevices.filter((d) => d.status === "闲置").length;
-  const notArrivedDevices = devices.filter((d) => d.status === "未到").length;
-  const devicesWithTests = mainDevices.filter((d) => d.totalTests > 0).length;
-  const noCalibData = mainDevices.filter((d) => d.calibrationStatus === "无校准数据").length;
-  const uniqueLocations = new Set(mainDevices.map((d) => d.location).filter(Boolean)).size;
+  useEffect(() => {
+    Promise.all([fetchDashboardStats(), fetchDevices()])
+      .then(([data, devs]) => {
+        setDashData(data);
+        setDevices(devs);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("获取总览数据失败:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-lg">
+        加载中...
+      </div>
+    );
+  }
+
+  if (!dashData) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground text-lg">
+        数据加载失败
+      </div>
+    );
+  }
+
+  // Pre-computed device stats from API
+  const {
+    totalDevices, calibNormal, calibSoon, calibExpired,
+    activeDevices, idleDevices, notArrivedDevices,
+    devicesWithTests, noCalibData, uniqueLocations,
+  } = dashData;
+
+  // Full device list for charts (location pie, top10 bar, top devices ranking)
+  const mainDevices = devices.filter((d) => d.status !== "未到");
 
   const devicePieOption = {
     tooltip: { trigger: "item" as const },
@@ -74,7 +101,7 @@ export default function Dashboard() {
       itemStyle: { borderRadius: 8, borderColor: "#fff", borderWidth: 3 },
       label: { show: false },
       emphasis: { label: { show: true, fontSize: 16, fontWeight: "bold" as const } },
-      data: testItemDistribution.map((item: any) => ({
+      data: dashData.testItemDistribution.map((item: any) => ({
         value: item.value, name: item.name, itemStyle: { color: item.color },
       })),
     }],
@@ -85,19 +112,19 @@ export default function Dashboard() {
     legend: { data: ["总检测量", "合格", "不合格"], bottom: 0, icon: "circle", itemWidth: 10, itemHeight: 10 },
     grid: { left: "3%", right: "4%", bottom: "12%", top: "5%", containLabel: true },
     xAxis: {
-      type: "category" as const, data: monthlyTestVolume.map((d: any) => d.month),
+      type: "category" as const, data: dashData.monthlyVolume.map((d: any) => d.month),
       axisLabel: { rotate: 30, color: "#475569" }, axisLine: { lineStyle: { color: "#e8e8e8" } },
     },
     yAxis: { type: "value" as const, splitLine: { lineStyle: { type: "dashed" as const, color: "#f0f0f0" } } },
     series: [
       {
         name: "总检测量", type: "line" as const, smooth: 0.4, symbol: "circle", symbolSize: 8,
-        data: monthlyTestVolume.map((d: any) => d.total),
+        data: dashData.monthlyVolume.map((d: any) => d.total),
         itemStyle: { color: "#1677ff" },
         areaStyle: { color: { type: "linear" as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "rgba(22,119,255,0.2)" }, { offset: 1, color: "rgba(22,119,255,0.01)" }] } },
       },
-      { name: "合格", type: "line" as const, smooth: 0.4, symbol: "circle", symbolSize: 8, data: monthlyTestVolume.map((d: any) => d.qualified), itemStyle: { color: "#52c41a" } },
-      { name: "不合格", type: "line" as const, smooth: 0.4, symbol: "circle", symbolSize: 8, data: monthlyTestVolume.map((d: any) => d.unqualified), itemStyle: { color: "#ff4d4f" } },
+      { name: "合格", type: "line" as const, smooth: 0.4, symbol: "circle", symbolSize: 8, data: dashData.monthlyVolume.map((d: any) => d.qualified), itemStyle: { color: "#52c41a" } },
+      { name: "不合格", type: "line" as const, smooth: 0.4, symbol: "circle", symbolSize: 8, data: dashData.monthlyVolume.map((d: any) => d.unqualified), itemStyle: { color: "#ff4d4f" } },
     ],
   };
 
@@ -147,12 +174,12 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-6 gap-3 mb-3">
-        <StatCard title="委托申请" value={pipeline.totalApplications} suffix="单" icon={FlaskConical} color="#1677ff" />
-        <StatCard title="待登记检测" value={pipeline.pendingRegistration} suffix="单" icon={Clock} color="#faad14" />
-        <StatCard title="检测中" value={pipeline.inProgress} suffix="单" icon={RefreshCw} color="#13c2c2" />
-        <StatCard title="已完成检测" value={pipeline.completed} suffix="单" icon={CheckCircle} color="#52c41a" />
+        <StatCard title="委托申请" value={dashData.pipeline.totalApplications} suffix="单" icon={FlaskConical} color="#1677ff" />
+        <StatCard title="待登记检测" value={dashData.pipeline.pendingRegistration} suffix="单" icon={Clock} color="#faad14" />
+        <StatCard title="检测中" value={dashData.pipeline.inProgress} suffix="单" icon={RefreshCw} color="#13c2c2" />
+        <StatCard title="已完成检测" value={dashData.pipeline.completed} suffix="单" icon={CheckCircle} color="#52c41a" />
         <StatCard title="设备总数" value={totalDevices} suffix="台" icon={Wrench} color="#722ed1" />
-        <StatCard title="送样图片" value={photoCount} suffix="张" icon={TrendingUp} color="#eb2f96" />
+        <StatCard title="送样图片" value={dashData.photoCount} suffix="张" icon={TrendingUp} color="#eb2f96" />
       </div>
       <div className="grid grid-cols-6 gap-3 mb-6">
         <StatCard title="使用中设备" value={activeDevices} suffix="台" icon={CheckCircle} color="#52c41a" />
@@ -186,7 +213,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(isExpanded ? materialStats : materialStats.slice(0, 6)).map((item: any) => (
+                  {(isExpanded ? dashData.materialStats : dashData.materialStats.slice(0, 6)).map((item: any) => (
                     <TableRow key={item.material}>
                       <TableCell className="font-medium">{item.material}</TableCell>
                       <TableCell className="text-center">{item.supplierCount}</TableCell>

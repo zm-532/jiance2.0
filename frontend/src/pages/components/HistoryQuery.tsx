@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Search, RotateCcw, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { experimentRecords, sampleCategories } from "@/mock/data";
+import {
+  fetchExperimentRecords,
+  fetchSampleCategories,
+  fetchManufacturers,
+  type ExperimentRecord,
+} from "@/services/stats";
 
 export default function HistoryQuery() {
   const [manufacturerFilter, setManufacturerFilter] = useState<string>("all");
@@ -16,11 +21,65 @@ export default function HistoryQuery() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // API data state
+  const [records, setRecords] = useState<ExperimentRecord[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+
   // Searchable manufacturer dropdown
   const [mfrOpen, setMfrOpen] = useState(false);
   const [mfrSearch, setMfrSearch] = useState("");
   const mfrRef = useRef<HTMLDivElement>(null);
 
+  // Load manufacturers once
+  useEffect(() => {
+    fetchManufacturers().then(setManufacturers).catch(console.error);
+  }, []);
+
+  // Load sample categories (正反链接)
+  useEffect(() => {
+    const mfr = manufacturerFilter === "all" ? undefined : manufacturerFilter;
+    fetchSampleCategories(mfr).then(setAvailableCategories).catch(console.error);
+  }, [manufacturerFilter]);
+
+  // Fetch records when filters change
+  const fetchRecords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const resp = await fetchExperimentRecords({
+        manufacturer: manufacturerFilter === "all" ? undefined : manufacturerFilter,
+        sample_name: categoryFilter === "all" ? undefined : categoryFilter,
+        page,
+        page_size: pageSize,
+      });
+      // 客户端关键字搜索（API不直接支持关键字搜索）
+      let filtered = resp.records;
+      if (searchText) {
+        filtered = filtered.filter(
+          (r) =>
+            (r.entrustNo || "").includes(searchText) ||
+            (r.sampleName || "").includes(searchText) ||
+            (r.project || "").includes(searchText)
+        );
+      }
+      setRecords(filtered);
+      setTotalRecords(resp.total);
+    } catch (e) {
+      console.error("获取实验记录失败:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [manufacturerFilter, categoryFilter, page, pageSize]);
+
+  useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
+
+  useEffect(() => { setPage(1); }, [manufacturerFilter, categoryFilter, searchText]);
+
+  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (mfrRef.current && !mfrRef.current.contains(e.target as Node)) setMfrOpen(false);
@@ -29,35 +88,18 @@ export default function HistoryQuery() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const manufacturers = useMemo(() => [...new Set(experimentRecords.map((r) => r.manufacturer))].filter(Boolean), []);
-
   const filteredMfrs = useMemo(() => {
     if (!mfrSearch) return manufacturers;
     return manufacturers.filter((m) => m.toLowerCase().includes(mfrSearch.toLowerCase()));
   }, [mfrSearch, manufacturers]);
 
-  const availableCategories = useMemo(() => {
-    if (manufacturerFilter === "all") return sampleCategories;
-    const cats = new Set(experimentRecords.filter((r) => r.manufacturer === manufacturerFilter).map((r) => r.sampleName));
-    return sampleCategories.filter((c) => cats.has(c));
-  }, [manufacturerFilter]);
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
 
-  const filteredData = useMemo(() => {
-    return experimentRecords.filter((r) => {
-      if (manufacturerFilter !== "all" && r.manufacturer !== manufacturerFilter) return false;
-      if (categoryFilter !== "all" && r.sampleName !== categoryFilter) return false;
-      if (searchText && !r.entrustNo.includes(searchText) && !r.sampleName.includes(searchText) && !r.project.includes(searchText)) return false;
-      return true;
-    });
-  }, [manufacturerFilter, categoryFilter, searchText]);
-
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [manufacturerFilter, categoryFilter, searchText]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
-  const pagedData = filteredData.slice((page - 1) * pageSize, page * pageSize);
-
-  const handleReset = () => { setManufacturerFilter("all"); setCategoryFilter("all"); setSearchText(""); };
+  const handleReset = () => {
+    setManufacturerFilter("all");
+    setCategoryFilter("all");
+    setSearchText("");
+  };
 
   const selectMfr = (val: string) => {
     setManufacturerFilter(val);
@@ -144,7 +186,8 @@ export default function HistoryQuery() {
       <Card>
         <CardContent className="pt-6">
           <div className="mb-3 text-sm text-muted-foreground">
-            共 <span className="text-primary font-semibold">{filteredData.length}</span> 条记录
+            共 <span className="text-primary font-semibold">{totalRecords}</span> 条记录
+            {loading && <span className="ml-2 text-muted-foreground">加载中...</span>}
           </div>
           <Table>
             <TableHeader>
@@ -162,7 +205,7 @@ export default function HistoryQuery() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagedData.map((r) => (
+              {records.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{r.entrustNo}</TableCell>
                   <TableCell>{r.sampleName}</TableCell>
@@ -180,6 +223,13 @@ export default function HistoryQuery() {
                   <TableCell className="truncate max-w-[200px]">{r.project}</TableCell>
                 </TableRow>
               ))}
+              {!loading && records.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    暂无数据
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
 
@@ -196,7 +246,7 @@ export default function HistoryQuery() {
                   <SelectItem value="100">100</SelectItem>
                 </SelectContent>
               </Select>
-              <span>条，共 {filteredData.length} 条</span>
+              <span>条，共 {totalRecords} 条</span>
             </div>
             <div className="flex items-center gap-1">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)}>首页</Button>

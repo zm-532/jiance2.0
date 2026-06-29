@@ -25,8 +25,7 @@ class TableColumnRowWithAvgExtractor(BaseExtractor):
             value_pattern = rule.get("value_pattern", r"(-?\d+\.?\d*)")
 
             if not tables:
-                logger.warning("TableColumnRowWithAvgExtractor: 无表格数据")
-                return result
+                logger.warning("TableColumnRowWithAvgExtractor: 无表格数据，尝试从原始文本提取")
 
             values = []
             avg_value = None
@@ -58,6 +57,15 @@ class TableColumnRowWithAvgExtractor(BaseExtractor):
 
                 if values or avg_value is not None:
                     break
+
+            # 无表格数据时的 raw_text 回退
+            if not values and avg_value is None and raw_text:
+                val = self._extract_value_from_text(
+                    raw_text, [row_key], [],
+                    value_pattern.replace(r"(", "").replace(r")", ""),
+                )
+                if val is not None:
+                    avg_value = val
 
             result["values"] = values
             # AVG 列优先作为最终结果

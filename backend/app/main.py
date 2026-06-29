@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.services.storage import UPLOAD_DIR, ensure_upload_dir
 from app.db.base import async_session
 from app.services.config_cache import load_config_cache
+from app.services.data_cache import load_data_cache
 
 app = FastAPI(title="检测系统 API")
 
@@ -24,7 +25,8 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 @app.on_event("startup")
-async def _startup_load_config_cache():
-    """应用启动时加载检测项配置到内存缓存。"""
+async def _startup_load_caches():
+    """应用启动时加载配置缓存和实验数据缓存。"""
     async with async_session() as db:
         await load_config_cache(db)
+    await load_data_cache()

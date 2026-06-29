@@ -31,7 +31,6 @@ class TablePressureRowExtractor(BaseExtractor):
 
             if not tables:
                 logger.warning("TablePressureRowExtractor: 无表格数据")
-                return result
 
             values = []
             for table in tables:
@@ -66,6 +65,16 @@ class TablePressureRowExtractor(BaseExtractor):
 
                 if values:
                     break
+
+            # 无表格或表格中未找到时，尝试从 raw_text 提取
+            if not values and raw_text:
+                for label in [positive_label, negative_label]:
+                    val = self._extract_value_from_text(
+                        raw_text, [label, column_key], [pressure_key],
+                        r"-?\d+\.?\d*",
+                    )
+                    if val is not None:
+                        values.append(val)
 
             result["values"] = values
             result["result"] = aggregate(values, aggregation_method)

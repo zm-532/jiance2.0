@@ -91,3 +91,41 @@ class BaseExtractor(ABC):
             except (ValueError, IndexError):
                 return None
         return None
+
+    @staticmethod
+    def _extract_value_from_text(
+        raw_text: str,
+        keys: list[str],
+        alternatives: list[str] | None = None,
+        value_pattern: str = r"-?\d+\.?\d*",
+    ) -> float | None:
+        """从 OCR 原始文本中按关键字提取数值（无表格时的回退方案）。
+
+        支持多种文本格式：
+            key: 92.26      key：92.26     key=92.26
+            T: 92.26 %      系统热容量=10441.0
+
+        Args:
+            raw_text: OCR 原始文本
+            keys: 主关键字列表（任一匹配即命中）
+            alternatives: 备选关键字列表（如英文缩写 T、H）
+            value_pattern: 数值正则模式（不含括号）
+        Returns:
+            提取的数值，未找到返回 None
+        """
+        import re
+        if not raw_text:
+            return None
+        candidates = list(keys) + (alternatives or [])
+        for key in candidates:
+            if not key:
+                continue
+            # 匹配 key 后面跟任意非数字字符再跟数值
+            pattern = rf"{re.escape(key)}[^\d\-]*?({value_pattern})"
+            match = re.search(pattern, raw_text, re.IGNORECASE)
+            if match:
+                try:
+                    return float(match.group(1))
+                except (ValueError, IndexError):
+                    continue
+        return None

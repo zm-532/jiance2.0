@@ -29,9 +29,11 @@ TYPE_EXTRACTOR_MAP: dict[str, type[BaseExtractor]] = {
     "table_row_column": TableRowColumnExtractor,
     "table_column_row": TableColumnRowExtractor,
     "table_avg": TableColumnRowWithAvgExtractor,
+    "table_column_row_with_avg": TableColumnRowWithAvgExtractor,  # JSON 配置中的别名
     "table_id_rows": TableIdRowsExtractor,
     "table_pressure": TablePressureRowExtractor,
     "single_value": SingleValueExtractor,
+    "single_value_or_frequency_table": SingleValueExtractor,  # JSON 配置中的别名
 }
 
 

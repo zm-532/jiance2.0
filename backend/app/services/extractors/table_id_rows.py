@@ -30,7 +30,6 @@ class TableIdRowsExtractor(BaseExtractor):
 
             if not tables:
                 logger.warning("TableIdRowsExtractor: 无表格数据")
-                return result
 
             values = []
             result_value = None
@@ -61,6 +60,15 @@ class TableIdRowsExtractor(BaseExtractor):
 
                 if values or result_value is not None:
                     break
+
+            # 无表格或表格中未找到时，尝试从 raw_text 提取结果行
+            if result_value is None and raw_text:
+                val = self._extract_value_from_text(
+                    raw_text, [result_row_key], result_row_alternatives,
+                    value_pattern.replace(r"(", "").replace(r")", ""),
+                )
+                if val is not None:
+                    result_value = val
 
             result["values"] = values
             result["result"] = result_value

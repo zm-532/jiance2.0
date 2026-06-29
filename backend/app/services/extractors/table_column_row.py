@@ -29,7 +29,6 @@ class TableColumnRowExtractor(BaseExtractor):
 
             if not tables:
                 logger.warning("TableColumnRowExtractor: 无表格数据")
-                return result
 
             values = []
             for table in tables:
@@ -56,6 +55,15 @@ class TableColumnRowExtractor(BaseExtractor):
 
                 if values:
                     break
+
+            # 无表格或表格中未找到时，尝试从 raw_text 提取
+            if not values and raw_text:
+                val = self._extract_value_from_text(
+                    raw_text, [row_key], row_alternatives,
+                    value_pattern.replace(r"(", "").replace(r")", ""),
+                )
+                if val is not None:
+                    values = [val]
 
             result["values"] = values
             result["result"] = aggregate(values, aggregation_method)
