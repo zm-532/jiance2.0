@@ -36,7 +36,7 @@ async def list_experiment_records(
     start_date: str | None = Query(None, description="开始日期 YYYY-MM-DD"),
     end_date: str | None = Query(None, description="结束日期 YYYY-MM-DD"),
     page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(50, ge=1, le=500, description="每页条数"),
+    page_size: int = Query(50, ge=1, le=10000, description="每页条数"),
 ):
     """实验记录列表（分页 + 筛选）。"""
     if not is_loaded():
