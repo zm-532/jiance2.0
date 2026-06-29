@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 const menuItems = [
   { key: "/dashboard", icon: LayoutDashboard, label: "总览工作台" },
   { key: "/experiment-db", icon: Database, label: "实验数据库" },
-  { key: "/data-judgment", icon: FileSearch, label: "数据源判定（开发中）" },
+  { key: "/data-judgment", icon: FileSearch, label: "数据源判定" },
   { key: "/device-manage", icon: Wrench, label: "设备管理" },
 ];
 
