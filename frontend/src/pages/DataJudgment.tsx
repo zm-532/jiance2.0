@@ -8,7 +8,7 @@ export default function DataJudgment() {
   return (
     <div>
       <div className="mb-6 pb-4 border-b">
-        <h2 className="text-xl font-bold tracking-tight">数据源判定</h2>
+        <h2 className="text-xl font-bold tracking-tight">数据源判定（开发中）</h2>
         <p className="text-muted-foreground mt-1 text-sm">试验数据照片OCR识别与检测报告自动生成</p>
       </div>
       <Card>
